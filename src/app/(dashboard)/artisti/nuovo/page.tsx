@@ -60,10 +60,10 @@ export default function NuovoArtistaPage() {
       // Precompila dati se valido
       if (result.valido && result.dati) {
         setForm(prev => ({
-          ...prev,
-          dataNascita: result.dati.dataNascita.toISOString().split('T')[0],
-          sesso: result.dati.sesso,
-        }))
+        ...prev,
+        dataNascita: result.dati?.dataNascita?.toISOString().split('T')[0] || '',
+        sesso: result.dati?.sesso || '',
+}))
       }
     } else if (form.codiceFiscale.length > 0 && form.codiceFiscale.length < 16) {
       setCfValidazione({ valido: false, errore: `${form.codiceFiscale.length}/16 caratteri` })

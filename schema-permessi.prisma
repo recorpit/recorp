@@ -1,0 +1,56 @@
+// ============================================
+// AGGIUNGI QUESTI MODELLI AL SCHEMA PRISMA
+// ============================================
+
+// Permesso singolo (es. "artisti.visualizza", "fatture.modifica")
+model Permesso {
+  id          String   @id @default(cuid())
+  codice      String   @unique  // es. "artisti.visualizza"
+  nome        String             // es. "Visualizza Artisti"
+  descrizione String?
+  modulo      String             // es. "artisti", "fatture", "agibilita"
+  azione      String             // es. "visualizza", "crea", "modifica", "elimina"
+  attivo      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  
+  ruoli       PermessoRuolo[]
+  utenti      PermessoUtente[]
+
+  @@index([modulo])
+  @@index([codice])
+}
+
+// Permessi associati ai ruoli (default per ogni ruolo)
+model PermessoRuolo {
+  id          String      @id @default(cuid())
+  ruolo       RuoloUtente
+  permessoId  String
+  createdAt   DateTime    @default(now())
+  
+  permesso    Permesso    @relation(fields: [permessoId], references: [id], onDelete: Cascade)
+
+  @@unique([ruolo, permessoId])
+  @@index([ruolo])
+}
+
+// Permessi custom per singolo utente (override del ruolo)
+model PermessoUtente {
+  id          String   @id @default(cuid())
+  userId      String
+  permessoId  String
+  concesso    Boolean  @default(true)  // true = permesso aggiunto, false = permesso revocato
+  createdAt   DateTime @default(now())
+  
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  permesso    Permesso @relation(fields: [permessoId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, permessoId])
+  @@index([userId])
+}
+
+// ============================================
+// AGGIUNGI RELAZIONE AL MODEL USER
+// ============================================
+
+// Nel model User, aggiungi:
+// permessiCustom      PermessoUtente[]

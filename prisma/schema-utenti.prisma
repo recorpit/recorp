@@ -1,0 +1,232 @@
+// prisma/schema-utenti.prisma
+// =====================================================
+// ESTENSIONE SCHEMA RECORP - Sistema Utenti e Format
+// Da INTEGRARE nello schema.prisma principale
+// =====================================================
+
+// ============================================
+// NUOVI ENUMS
+// ============================================
+
+enum RuoloUtente {
+  ADMIN           // Accesso completo
+  OPERATORE       // Crea/modifica agibilità, no impostazioni
+  ARTISTA         // Solo visualizzazione proprie agibilità + self-service
+  COMMITTENTE     // Locale/Committente - visualizza proprie agibilità
+  FORMAT_MANAGER  // Gestisce format, sceglie committente/locale
+}
+
+enum StatoUtente {
+  PENDING              // Registrato, in attesa verifica email
+  EMAIL_VERIFICATA     // Email verificata, in attesa contratto (artista) o approvazione (locale)
+  CONTRATTO_INVIATO    // Artista: contratto inviato, in attesa firma
+  IN_APPROVAZIONE      // Locale: in attesa approvazione admin
+  ATTIVO               // Può operare
+  SOSPESO              // Bloccato dall'admin
+}
+
+enum TipoFatturazioneFormat {
+  COMMITTENTE    // Fattura al committente selezionato del format
+  EVERYONE       // Fattura RECORP → locale (default locale, modificabile)
+}
+
+// ============================================
+// MODEL: User
+// ============================================
+
+model User {
+  id                    String                  @id @default(cuid())
+  email                 String                  @unique
+  passwordHash          String
+  
+  // Profilo base
+  nome                  String
+  cognome               String
+  telefono              String?
+  
+  // Stato e ruolo
+  ruolo                 RuoloUtente             @default(ARTISTA)
+  stato                 StatoUtente             @default(PENDING)
+  
+  // Collegamento entità (uno dei due, non entrambi)
+  artistaId             String?                 @unique
+  artista               Artista?                @relation(fields: [artistaId], references: [id])
+  committenteId         String?                 
+  committente           Committente?            @relation(fields: [committenteId], references: [id])
+  
+  // Format gestiti (per FORMAT_MANAGER)
+  formatGestiti         UserFormat[]
+  
+  // GDPR
+  privacyAccettata      Boolean                 @default(false)
+  privacyAccettataAt    DateTime?
+  marketingAccettato    Boolean                 @default(false)
+  
+  // Verifica email
+  emailVerificata       Boolean                 @default(false)
+  emailVerificataAt     DateTime?
+  tokenVerifica         String?                 @unique
+  tokenVerificaScade    DateTime?
+  
+  // Reset password
+  tokenResetPassword    String?                 @unique
+  tokenResetScade       DateTime?
+  
+  // Contratto (per artisti)
+  tipoContrattoScelto   TipoContratto?          // Scelto in fase di accettazione
+  contrattoInviatoAt    DateTime?
+  contrattoFirmatoAt    DateTime?
+  contrattoPath         String?                 // Path PDF contratto firmato
+  
+  // Invito (se registrato tramite link)
+  tokenInvito           String?                 // Token dell'invito originale
+  
+  // Timestamps
+  createdAt             DateTime                @default(now())
+  updatedAt             DateTime                @updatedAt
+  lastLoginAt           DateTime?
+  
+  // Approvazione (per locale)
+  approvatoAt           DateTime?
+  approvatoDa           String?                 // ID admin che ha approvato
+  
+  @@index([email])
+  @@index([artistaId])
+  @@index([committenteId])
+  @@index([tokenVerifica])
+  @@index([tokenResetPassword])
+}
+
+// ============================================
+// MODEL: Format
+// ============================================
+
+model Format {
+  id                    String                  @id @default(cuid())
+  nome                  String                  @unique
+  descrizione           String?
+  
+  // Fatturazione
+  tipoFatturazione      TipoFatturazioneFormat  @default(COMMITTENTE)
+  
+  // Committenti collegati a questo format
+  committenti           FormatCommittente[]
+  
+  // Utenti abilitati alla gestione
+  utentiAbilitati       UserFormat[]
+  
+  // Agibilità create per questo format
+  agibilita             Agibilita[]
+  
+  // Stato
+  attivo                Boolean                 @default(true)
+  
+  // Timestamps
+  createdAt             DateTime                @default(now())
+  updatedAt             DateTime                @updatedAt
+  
+  @@index([nome])
+}
+
+// ============================================
+// MODEL: FormatCommittente (relazione N:N)
+// ============================================
+
+model FormatCommittente {
+  id                    String                  @id @default(cuid())
+  
+  formatId              String
+  format                Format                  @relation(fields: [formatId], references: [id], onDelete: Cascade)
+  
+  committenteId         String
+  committente           Committente             @relation(fields: [committenteId], references: [id])
+  
+  // Ordinamento / priorità
+  ordine                Int                     @default(0)
+  
+  createdAt             DateTime                @default(now())
+  
+  @@unique([formatId, committenteId])
+  @@index([formatId])
+  @@index([committenteId])
+}
+
+// ============================================
+// MODEL: UserFormat (relazione N:N)
+// ============================================
+
+model UserFormat {
+  id                    String                  @id @default(cuid())
+  
+  userId                String
+  user                  User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  formatId              String
+  format                Format                  @relation(fields: [formatId], references: [id], onDelete: Cascade)
+  
+  createdAt             DateTime                @default(now())
+  
+  @@unique([userId, formatId])
+  @@index([userId])
+  @@index([formatId])
+}
+
+// ============================================
+// MODEL: InvitoRegistrazione
+// ============================================
+
+model InvitoRegistrazione {
+  id                    String                  @id @default(cuid())
+  
+  token                 String                  @unique
+  email                 String
+  
+  // Tipo invito
+  tipo                  RuoloUtente             // ARTISTA, COMMITTENTE, FORMAT_MANAGER
+  
+  // Dati pre-compilati
+  nome                  String?
+  cognome               String?
+  telefono              String?
+  codiceFiscale         String?                 // Per artista
+  partitaIva            String?                 // Per committente
+  ragioneSociale        String?                 // Per committente
+  
+  // Collegamento entità esistente (se già nel DB)
+  artistaId             String?
+  committenteId         String?
+  
+  // Format (per FORMAT_MANAGER)
+  formatId              String?
+  
+  // Stato
+  usato                 Boolean                 @default(false)
+  usatoAt               DateTime?
+  
+  // Scadenza
+  scadeAt               DateTime
+  
+  // Chi ha creato l'invito
+  creatoDa              String?                 // ID admin/operatore
+  
+  createdAt             DateTime                @default(now())
+  
+  @@index([token])
+  @@index([email])
+}
+
+// ============================================
+// MODIFICHE A MODEL ESISTENTI (da integrare)
+// ============================================
+
+// Aggiungere a model Artista:
+//   user                  User?
+
+// Aggiungere a model Committente:
+//   users                 User[]
+//   formats               FormatCommittente[]
+
+// Aggiungere a model Agibilita:
+//   formatId              String?
+//   format                Format?               @relation(fields: [formatId], references: [id])
+//   fatturaA              String?               // ID committente per fatturazione (se diverso)

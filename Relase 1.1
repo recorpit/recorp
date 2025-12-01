@@ -1,0 +1,463 @@
+# RECORP - CAPITOLATO TECNICO v3.0
+## Sistema Gestionale Agibilita e Servizi per Azienda Eventi
+
+**Versione:** 3.0  
+**Data:** Novembre 2024  
+**Stato:** Specifica definitiva
+
+---
+
+## 1. PANORAMICA SISTEMA
+
+### 1.1 Descrizione
+RECORP e un sistema gestionale per aziende del settore eventi, focalizzato sulla gestione delle agibilita INPS/ENPALS per artisti. Il sistema e progettato per essere modulare ed espandibile.
+
+### 1.2 Filosofia
+- Il sistema prepara i dati e guida l'operatore
+- La compilazione INPS rimane manuale per affidabilita
+- Alert e notifiche su richiesta (non automatiche per rischio)
+- Multi-utente con sistema bozze e lock
+- Prenotazione numeri thread-safe
+
+### 1.3 Struttura Modulare
+
+```
+RECORP
+├── Agibilita      (Fase 1 - ATTIVO)
+├── Pagamenti      (Fase 1 - ATTIVO)
+├── Fatturazione   (Fase 2 - PREDISPOSTO)
+├── Produzione     (Fase 3 - FUTURO)
+├── Preventivi     (Fase 3 - FUTURO)
+├── Staff          (Fase 4 - FUTURO)
+└── Magazzino      (Fase 4 - FUTURO)
+```
+
+---
+
+## 2. ENTITA PRINCIPALI
+
+### 2.1 Separazione Locale / Committente
+
+Il sistema distingue tra:
+
+**LOCALE** = Luogo fisico dove si svolge l'evento
+- Nome, indirizzo, citta, CAP, provincia
+- Codice Belfiore (per INPS)
+- Referente locale
+- Committente di default (opzionale, per precompilare)
+
+**COMMITTENTE** = Entita fiscale che paga
+- Ragione sociale, P.IVA, CF
+- Indirizzo fatturazione
+- PEC, Codice SDI
+- Quota agenzia, giorni pagamento
+- Flag rischio (manuale)
+
+**Esempi d'uso:**
+1. Locale "Discoteca XYZ" → Committente "XYZ SRL" (stesso soggetto)
+2. Locale "Piazza Roma, Verona" → Committente "Format Eventi SRL" (organizzatore esterno)
+3. Committente "Agenzia ABC" → Nessun locale fisso (eventi itineranti)
+
+### 2.2 Codici Qualifica INPS
+
+| Codice | Enum | Descrizione |
+|--------|------|-------------|
+| 013 | COD_013_CORISTI_VOCALISTI | Coristi e Vocalisti |
+| 031 | COD_031_VOCALIST | Vocalist |
+| 032 | COD_032_DJ | DJ |
+| 081 | COD_081_MUSICISTI | Musicisti |
+| 092 | COD_092_BALLERINI | Ballerini |
+| 117 | COD_117_LUCISTI | Lucisti |
+| 126 | COD_126_FOTOGRAFI | Fotografi |
+| 141 | COD_141_TRUCCATORI | Truccatori |
+
+### 2.3 Codice Belfiore
+Campo visibile in anagrafica Locale per la compilazione manuale INPS.
+Formato: 4 caratteri alfanumerici (es: "L736" per Vicenza).
+Sviluppo futuro: cascata Province → Citta → CAP con autocompilazione.
+
+---
+
+## 3. MODULO AGIBILITA
+
+### 3.1 Workflow
+
+```
+1. Prenotazione numero (thread-safe, scade 30 min)
+       ↓
+2. Creazione bozza (autosalvataggio ogni 60 sec)
+       ↓
+3. Selezione artista
+       ↓
+4. Selezione locale (dove si esibisce)
+       ↓
+5. Selezione committente (chi paga)
+       ↓
+6. Inserimento dati economici
+       ↓
+7. Validazione e generazione XML
+       ↓
+8. Compilazione manuale INPS (esterna)
+       ↓
+9. Caricamento ricevuta INPS
+       ↓
+10. Invii (locale / artista / committente)
+       ↓
+11. Collegamento fattura
+       ↓
+12. Chiusura pratica
+```
+
+### 3.2 Stati Pratica
+
+| Stato | Descrizione |
+|-------|-------------|
+| BOZZA | In lavorazione |
+| DATI_INCOMPLETI | Mancano dati obbligatori |
+| PRONTA | Pronta per compilazione INPS |
+| INVIATA_INPS | Compilata su portale |
+| COMPLETATA | Ricevuta caricata |
+| ERRORE | Problema riscontrato |
+
+### 3.3 Stati Invio (Flag Paralleli)
+
+| Flag | Descrizione |
+|------|-------------|
+| inviatoLocale | Docs inviati al locale |
+| inviatoArtista | Docs inviati all'artista |
+| inviatoCommittente | Docs inviati al committente |
+
+### 3.4 Prenotazione Numero (Thread-safe)
+
+Sistema per evitare duplicati in ambiente multi-utente:
+
+```
+1. Utente clicca "Nuova Agibilita"
+2. Sistema prenota numero: AG-2025-042
+3. Scadenza: 30 minuti
+4. Se confermato → numero assegnato
+5. Se scaduto → numero rilasciato
+```
+
+Struttura codice: `AG-{ANNO}-{PROGRESSIVO:3}`
+
+### 3.5 Sistema Bozze con Lock
+
+Multi-utente con protezione modifiche concorrenti:
+
+```
+Bozza
+├── Dati salvati (JSON)
+├── Numero prenotato
+├── % completamento
+├── Lock
+│   ├── lockedById
+│   ├── lockedByName
+│   ├── lockedAt
+│   └── lockScadeAt (15 min)
+└── Autosave ogni 60 sec
+```
+
+**Comportamento:**
+- Utente A apre bozza → lock attivo
+- Utente B tenta apertura → messaggio "In uso da Utente A"
+- Utente B puo forzare sblocco se lock scaduto
+- Lock si rinnova automaticamente durante editing
+
+---
+
+## 4. ANAGRAFICHE
+
+### 4.1 Artista
+
+**Anagrafica:**
+- Nome, cognome, nome d'arte
+- Codice fiscale (opzionale per stranieri)
+- Codice fiscale estero (ID temporaneo)
+- Nazionalita
+- Data e luogo nascita
+
+**Professionale:**
+- Tipo artista
+- Codice qualifica INPS
+- Tipo contratto
+- Matricola ENPALS
+- Cachet base
+
+**Pagamento:**
+- IBAN
+- Tipo pagamento preferito
+- Documento identita
+
+**Stato:**
+- `iscritto`: registrazione completa (IBAN + docs)
+
+### 4.2 Locale
+
+**Identificazione:**
+- Nome
+- Tipo locale
+
+**Indirizzo:**
+- Indirizzo, CAP, citta, provincia
+- **Codice Belfiore** (per INPS)
+
+**Referente:**
+- Nome, telefono, email
+
+**Default:**
+- Committente di default (per precompilare)
+
+### 4.3 Committente
+
+**Fiscale:**
+- Ragione sociale
+- P.IVA, Codice fiscale
+- PEC, Codice SDI
+
+**Fatturazione:**
+- Indirizzo fatturazione completo
+
+**Condizioni:**
+- Quota agenzia (fisso per agibilita)
+- Giorni pagamento
+- IBAN
+
+**Rischio:**
+- `aRischio`: flag manuale
+- Notifica solo su clic operatore (NON automatica)
+
+---
+
+## 5. MODULO PAGAMENTI
+
+### 5.1 Tipi Pagamento
+
+| Tipo | Descrizione |
+|------|-------------|
+| STANDARD_15GG | 15 giorni dopo evento |
+| ANTICIPATO | Prima dell'evento |
+| DOPO_INCASSO | Dopo incasso da committente |
+
+### 5.2 Logica Rischio
+
+```
+Se committente.aRischio = true:
+  → Pagamento artista suggerito: DOPO_INCASSO
+  → Warning visivo nella pratica
+  → Notifica NON automatica (solo su clic)
+```
+
+### 5.3 Soglia Annuale (Prestazione Occasionale)
+
+Per artisti con `tipoContratto = PRESTAZIONE_OCCASIONALE`:
+- Soglia: 2.500 EUR/anno
+- Alert a 80% (2.000 EUR)
+- Alert a 95% (2.375 EUR)
+- Blocco a 100% con richiesta cambio contratto
+
+### 5.4 Distinta CSV
+
+Generazione mensile con:
+- Artisti da pagare
+- Importi netti
+- IBAN
+- Causali
+
+---
+
+## 6. MODULO FATTURAZIONE (Predisposto)
+
+### 6.1 Collegamento
+
+```
+Fattura
+├── committenteId (chi paga)
+├── agibilita[] (pratiche collegate)
+├── imponibile, IVA, totale
+└── stato
+```
+
+### 6.2 Composizione
+
+```
+Fattura a Committente X:
+  + Agibilita 1: importoFattura
+  + Agibilita 2: importoFattura
+  = Totale imponibile
+  + IVA
+  = Totale fattura
+```
+
+### 6.3 Stati
+
+| Stato | Descrizione |
+|-------|-------------|
+| BOZZA | In preparazione |
+| EMESSA | Numerata |
+| INVIATA | Spedita |
+| PAGATA | Incassata |
+| ANNULLATA | Annullata |
+
+---
+
+## 7. NOTIFICHE
+
+### 7.1 Tipi
+
+| Tipo | Descrizione |
+|------|-------------|
+| AGIBILITA | Pratiche |
+| PAGAMENTO | Scadenze |
+| FATTURA | Emissione/scadenze |
+| ARTISTA | Registrazione |
+| RISCHIO | Solo su clic manuale |
+| SISTEMA | Generiche |
+
+### 7.2 Notifica Rischio (Manuale)
+
+La notifica di rischio committente viene generata **solo su azione esplicita** dell'operatore, NON automaticamente.
+
+Esempio: bottone "Notifica Rischio" nella scheda committente.
+
+---
+
+## 8. FORMULE ECONOMICHE
+
+### 8.1 Compensi (Prestazione Occasionale)
+
+```javascript
+// Da netto a lordo
+lordo = netto * 1.25
+
+// Da lordo a netto  
+netto = lordo * 0.80
+
+// Ritenuta
+ritenuta = lordo * 0.20
+
+// Importo fattura
+importoFattura = lordo + quotaAgenzia
+```
+
+### 8.2 Scadenza Pagamento
+
+```javascript
+function calcolaScadenza(dataEvento, tipoPagamento, committenteARischio) {
+  if (committenteARischio) {
+    return null; // Suggerisce DOPO_INCASSO
+  }
+  
+  switch (tipoPagamento) {
+    case 'ANTICIPATO':
+      return dataEvento;
+    case 'STANDARD_15GG':
+      return addDays(dataEvento, 15);
+    case 'DOPO_INCASSO':
+      return null;
+  }
+}
+```
+
+---
+
+## 9. NAVIGAZIONE UI
+
+### 9.1 Menu Principale
+
+```
+RECORP
+├── Dashboard
+├── Artisti
+├── Locali
+├── Committenti
+├── Agibilita
+├── Pagamenti
+└── Fatturazione (futuro)
+```
+
+### 9.2 Dashboard
+
+Widget:
+- Agibilita da completare
+- Bozze in lavorazione (con lock info)
+- Pagamenti in scadenza
+- Artisti non iscritti
+- Numeri prenotati in scadenza
+
+---
+
+## 10. PERMESSI E RUOLI
+
+| Ruolo | Agibilita | Pagamenti | Fatture | Anagrafiche |
+|-------|-----------|-----------|---------|-------------|
+| admin | Full | Full | Full | Full |
+| operatore | Full | Full | View | Full |
+| artistico | View | No | No | View artisti |
+| produzione | View stato | No | No | No |
+
+---
+
+## 11. STACK TECNOLOGICO
+
+### 11.1 Frontend
+- Next.js 14+ (App Router)
+- TypeScript
+- Tailwind CSS
+- Lucide Icons
+
+### 11.2 Backend
+- Next.js API Routes
+- Prisma ORM 5.x
+
+### 11.3 Database
+- PostgreSQL
+- Supabase (produzione)
+
+---
+
+## 12. SVILUPPI FUTURI
+
+### Fase 2
+- Cascata Province → Citta → CAP
+- Autocompilazione Codice Belfiore
+- Invio email automatico
+- PDF artista completo
+
+### Fase 3
+- Modulo produzione eventi
+- Preventivi
+- Dossier evento
+
+### Fase 4
+- Gestione staff
+- Magazzino
+- App mobile
+
+---
+
+## 13. NOTE IMPLEMENTATIVE
+
+### 13.1 Rischio Committente
+Il flag `aRischio` e gestito manualmente.
+NON genera notifiche automatiche.
+L'operatore decide quando e se notificare.
+
+### 13.2 Artisti Stranieri
+Possono non avere CF italiano.
+Usare campo `codiceFiscaleEstero` per ID temporaneo.
+Validazione CF solo per nazionalita IT.
+
+### 13.3 Multi-Utente
+Sistema bozze con lock previene conflitti.
+Lock scade dopo 15 minuti di inattivita.
+Possibilita di forzare sblocco se necessario.
+
+### 13.4 Prenotazione Numeri
+Garantisce unicita in ambiente concorrente.
+Scadenza 30 minuti.
+Numeri scaduti vengono riutilizzati.
+
+---
+
+**Fine Capitolato Tecnico v3.0**

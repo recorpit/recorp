@@ -1,0 +1,157 @@
+// ============================================
+// AGGIUNTE SCHEMA PRISMA - FATTURAZIONE XML
+// Da aggiungere a schema.prisma esistente
+// ============================================
+
+// ============================================
+// ENUM AGGIUNTIVI
+// ============================================
+
+enum StatoNotaDiCredito {
+  BOZZA
+  EMESSA
+  INVIATA
+  ANNULLATA
+}
+
+// ============================================
+// SCADENZA PAGAMENTO (configurabile)
+// ============================================
+
+model ScadenzaPagamento {
+  id            String    @id @default(cuid())
+  nome          String    // "30 giorni", "60 giorni FM", etc.
+  codice        String    @unique // "30GG", "60FM", etc.
+  giorni        Int       @default(30)
+  fineMese      Boolean   @default(false) // Se true, scade a fine mese
+  descrizione   String?
+  attivo        Boolean   @default(true)
+  ordine        Int       @default(0)
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  // Relazioni
+  committenti   Committente[]
+  fatture       Fattura[]
+  
+  @@index([attivo])
+  @@index([ordine])
+}
+
+// ============================================
+// COMMITTENTE - CAMPI AGGIUNTIVI
+// ============================================
+// Aggiungere questi campi al model Committente esistente:
+
+// model Committente {
+//   // ... campi esistenti ...
+//   
+//   // NUOVI CAMPI FATTURAZIONE
+//   modalitaFatturazione      String              @default("DETTAGLIO_SPESE_INCLUSE")
+//   // Valori: "DETTAGLIO_SPESE_SEPARATE" | "DETTAGLIO_SPESE_INCLUSE"
+//   
+//   scadenzaPagamentoId       String?
+//   scadenzaPagamento         ScadenzaPagamento?  @relation(fields: [scadenzaPagamentoId], references: [id])
+//   
+//   isPubblicaAmministrazione Boolean             @default(false)
+//   splitPayment              Boolean             @default(false)
+//   
+//   // NUOVA RELAZIONE
+//   noteDiCredito             NotaDiCredito[]
+// }
+
+// ============================================
+// FATTURA - CAMPI AGGIUNTIVI
+// ============================================
+// Aggiungere questi campi al model Fattura esistente:
+
+// model Fattura {
+//   // ... campi esistenti ...
+//   
+//   // NUOVI CAMPI
+//   modalitaRighe         String    @default("DETTAGLIO_SPESE_INCLUSE")
+//   // Valori: "DETTAGLIO_SPESE_SEPARATE" | "DETTAGLIO_SPESE_INCLUSE" | "VOCE_UNICA"
+//   
+//   descrizioneGenerica   String?   // Solo se modalitaRighe = "VOCE_UNICA"
+//   aliquotaIva           Int       @default(22) // 22 o 10
+//   splitPayment          Boolean   @default(false)
+//   righeFattura          Json?     // Array dettaglio righe per XML
+//   causale               String?   // Es: "DOMENICA 23 NOVEMBRE - CLUB XYZ"
+//   
+//   scadenzaPagamentoId   String?
+//   scadenzaPagamento     ScadenzaPagamento? @relation(fields: [scadenzaPagamentoId], references: [id])
+//   
+//   progressivoInvio      String?   // Per XML (es: "RCP001")
+//   
+//   // NUOVA RELAZIONE
+//   noteDiCredito         NotaDiCredito[]
+// }
+
+// ============================================
+// NOTA DI CREDITO
+// ============================================
+
+model NotaDiCredito {
+  id                    String              @id @default(cuid())
+  numero                String              @unique // NC-2024-001
+  anno                  Int
+  progressivo           Int
+  
+  // Riferimento fattura originale
+  fatturaRiferimentoId  String
+  fatturaRiferimento    Fattura             @relation(fields: [fatturaRiferimentoId], references: [id])
+  
+  // Committente
+  committenteId         String
+  committente           Committente         @relation(fields: [committenteId], references: [id])
+  
+  // Data
+  dataEmissione         DateTime
+  
+  // Importi
+  imponibile            Decimal             @db.Decimal(10, 2)
+  aliquotaIva           Int                 @default(22)
+  iva                   Decimal             @db.Decimal(10, 2)
+  totale                Decimal             @db.Decimal(10, 2)
+  
+  splitPayment          Boolean             @default(false)
+  
+  // Stato
+  stato                 StatoNotaDiCredito  @default(BOZZA)
+  
+  // Dettagli
+  motivazione           String?             // Motivo dello storno
+  righeFattura          Json?               // Righe stornate
+  
+  // File
+  pdfPath               String?
+  xmlPath               String?
+  
+  // XML
+  progressivoInvio      String?
+  
+  // Note
+  note                  String?
+  
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+  
+  @@unique([anno, progressivo])
+  @@index([stato])
+  @@index([committenteId])
+  @@index([fatturaRiferimentoId])
+}
+
+// ============================================
+// PROGRESSIVO FATTURA (numerazione thread-safe)
+// ============================================
+
+model ProgressivoFattura {
+  id            String    @id @default(cuid())
+  anno          Int
+  tipo          String    @default("FATTURA") // "FATTURA" | "NOTA_CREDITO"
+  ultimoNumero  Int       @default(0)
+  
+  @@unique([anno, tipo])
+}

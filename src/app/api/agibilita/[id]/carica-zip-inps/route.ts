@@ -174,7 +174,7 @@ export async function POST(
     // Se committente diverso dal locale, salva anche lì
     let committenteHasCopia = false
     if (agibilita.committenteId !== agibilita.locale.committenteDefaultId) {
-      const committenteSlug = slugify(agibilita.committente.ragioneSociale)
+      const committenteSlug = slugify(agibilita.committente!.ragioneSociale)
       const committentePath = path.join(uploadsBase, 'committenti', committenteSlug, 'agibilita')
       ensureDir(committentePath)
       const committentePdfPath = path.join(committentePath, pdfFileName)
@@ -298,20 +298,20 @@ export async function POST(
         }
         
         // Email al COMMITTENTE (se abilitato e ha email)
-        if (settings.invioEmailCommittente && agibilita.committente.email) {
+        if (settings.invioEmailCommittente && agibilita.committente!.email) {
           const artistiNomi = agibilita.artisti.map((aa: any) => 
             aa.artista.nomeDarte || `${aa.artista.cognome} ${aa.artista.nome}`
           )
           
           const template = templateEmailAgibilitaLocale({
-            nomeLocale: agibilita.committente.ragioneSociale,
+            nomeLocale: agibilita.committente!.ragioneSociale,
             codiceAgibilita: agibilita.codice,
             dataEvento: dataFormattata,
             artisti: artistiNomi
           })
           
           const sent = await sendEmail({
-            to: agibilita.committente.email,
+            to: agibilita.committente!.email,
             subject: template.subject,
             html: template.html,
             text: template.text,
@@ -335,7 +335,7 @@ export async function POST(
       pdfPath: pdfPathRelativo,
       pdfSalvatoIn: {
         locale: localeSlug,
-        committente: committenteHasCopia ? slugify(agibilita.committente.ragioneSociale) : null
+        committente: committenteHasCopia ? slugify(agibilita.committente!.ragioneSociale) : null
       },
       lavoratoriAggiornati: lavoratori.length,
       emailInviate,

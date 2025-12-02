@@ -130,47 +130,49 @@ export default function ArtistiPage() {
         </div>
         <Link
           href="/artisti/nuovo"
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          className="flex items-center gap-1 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
         >
-          <Plus size={20} />
-          Nuovo Artista
+          <Plus size={16} />
+          <span>Nuovo</span>
         </Link>
       </div>
       
       {/* Filters */}
-      <div className="bg-white rounded-lg shadow-sm p-4 mb-6">
-        <div className="flex flex-wrap gap-4">
-          <div className="flex-1 min-w-64">
+      <div className="bg-white rounded-lg shadow-sm p-3 sm:p-4 mb-6">
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="flex-1">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
               <input
                 type="text"
-                placeholder="Cerca per nome, cognome, nome d'arte, CF..."
+                placeholder="Cerca..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
               />
             </div>
           </div>
-          <select 
-            value={filtroIscritto}
-            onChange={(e) => setFiltroIscritto(e.target.value as any)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="tutti">Tutti ({stats.totali})</option>
-            <option value="iscritti">Iscritti ({stats.iscritti})</option>
-            <option value="non_iscritti">Non iscritti ({stats.nonIscritti})</option>
-          </select>
-          <select 
-            value={filtroQualifica}
-            onChange={(e) => setFiltroQualifica(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="">Tutte le qualifiche</option>
-            {Object.entries(QUALIFICA_LABELS).map(([key, label]) => (
-              <option key={key} value={key}>{label}</option>
-            ))}
-          </select>
+          <div className="flex gap-2">
+            <select 
+              value={filtroIscritto}
+              onChange={(e) => setFiltroIscritto(e.target.value as any)}
+              className="flex-1 sm:flex-none px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="tutti">Tutti</option>
+              <option value="iscritti">Iscritti</option>
+              <option value="non_iscritti">Non iscritti</option>
+            </select>
+            <select 
+              value={filtroQualifica}
+              onChange={(e) => setFiltroQualifica(e.target.value)}
+              className="flex-1 sm:flex-none px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">Qualifica</option>
+              {Object.entries(QUALIFICA_LABELS).map(([key, label]) => (
+                <option key={key} value={key}>{label}</option>
+              ))}
+            </select>
+          </div>
         </div>
         
         {/* Contatore risultati */}
@@ -190,34 +192,34 @@ export default function ArtistiPage() {
       
       {/* Table */}
       <div className="bg-white rounded-lg shadow-sm overflow-hidden">
-        <table className="w-full">
-          <thead className="bg-gray-50 border-b border-gray-200">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Artista
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Codice Fiscale
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Qualifica
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Contratto
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Agibilità
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Iscritto
-              </th>
-              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Azioni
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-200">
-            {artistiFiltrati.length === 0 ? (
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[700px]">
+            <thead className="bg-gray-50 border-b border-gray-200">
+              <tr>
+                <th className="px-3 sm:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  Artista
+                </th>
+                <th className="px-3 sm:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase hidden sm:table-cell">
+                  CF
+                </th>
+                <th className="px-3 sm:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  Qualifica
+                </th>
+                <th className="px-3 sm:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase hidden md:table-cell">
+                  Contratto
+                </th>
+                <th className="px-3 sm:px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">
+                  Agib.
+                </th>
+                <th className="px-3 sm:px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">
+                  Iscr.
+                </th>
+                <th className="px-3 sm:px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200">
+              {artistiFiltrati.length === 0 ? (
               <tr>
                 <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
                   <Users className="mx-auto mb-2 text-gray-300" size={48} />
@@ -247,72 +249,63 @@ export default function ArtistiPage() {
             ) : (
               artistiFiltrati.map((artista) => (
                 <tr key={artista.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-3">
+                  <td className="px-3 sm:px-4 py-3">
+                    <div className="flex items-center gap-2">
                       <div className={`
-                        w-10 h-10 rounded-full flex items-center justify-center text-white font-bold
+                        w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-xs
                         ${artista.iscritto ? 'bg-blue-500' : 'bg-gray-400'}
                       `}>
                         {artista.nome.charAt(0)}{artista.cognome.charAt(0)}
                       </div>
                       <div>
-                        <p className="font-medium text-gray-900">
+                        <p className="font-medium text-gray-900 text-sm">
                           {artista.cognome} {artista.nome}
                         </p>
                         {artista.nomeDarte && (
-                          <p className="text-sm text-gray-500">&quot;{artista.nomeDarte}&quot;</p>
+                          <p className="text-xs text-gray-500">&quot;{artista.nomeDarte}&quot;</p>
                         )}
                       </div>
                     </div>
                   </td>
-                  <td className="px-6 py-4">
+                  <td className="px-3 sm:px-4 py-3 hidden sm:table-cell">
                     {artista.codiceFiscale ? (
-                      <span className="font-mono text-sm">{artista.codiceFiscale}</span>
+                      <span className="font-mono text-xs">{artista.codiceFiscale}</span>
                     ) : artista.extraUE ? (
-                      <span className="text-gray-400 text-sm">Extra UE</span>
+                      <span className="text-gray-400 text-xs">Extra UE</span>
                     ) : (
-                      <span className="text-gray-400 text-sm">-</span>
+                      <span className="text-gray-400 text-xs">-</span>
                     )}
                   </td>
-                  <td className="px-6 py-4">
-                    <span className={`text-sm ${artista.qualifica === 'ALTRO' ? 'text-amber-600 font-medium' : ''}`}>
-                      {QUALIFICA_LABELS[artista.qualifica] || artista.qualifica}
-                    </span>
+                  <td className="px-3 sm:px-4 py-3">
+                    <span className="text-xs">{QUALIFICA_LABELS[artista.qualifica] || artista.qualifica}</span>
                   </td>
-                  <td className="px-6 py-4">
-                    <span className="text-sm">
-                      {TIPI_CONTRATTO[artista.tipoContratto] || artista.tipoContratto}
-                    </span>
+                  <td className="px-3 sm:px-4 py-3 hidden md:table-cell">
+                    <span className="text-xs">{TIPI_CONTRATTO[artista.tipoContratto] || artista.tipoContratto}</span>
                   </td>
-                  <td className="px-6 py-4">
-                    <span className="text-gray-900">{artista._count.agibilita}</span>
+                  <td className="px-3 sm:px-4 py-3 text-center">
+                    <span className="text-gray-900 text-sm">{artista._count.agibilita}</span>
                   </td>
-                  <td className="px-6 py-4">
+                  <td className="px-3 sm:px-4 py-3 text-center">
                     {artista.iscritto ? (
-                      <span className="inline-flex items-center gap-1 text-green-600">
-                        <CheckCircle size={16} />
-                        <span className="text-sm">Sì</span>
-                      </span>
+                      <CheckCircle size={16} className="text-green-600 mx-auto" />
                     ) : (
-                      <span className="inline-flex items-center gap-1 text-red-600">
-                        <XCircle size={16} />
-                        <span className="text-sm">No</span>
-                      </span>
+                      <XCircle size={16} className="text-red-600 mx-auto" />
                     )}
                   </td>
-                  <td className="px-6 py-4 text-right">
+                  <td className="px-3 sm:px-4 py-3 text-right">
                     <Link
                       href={`/artisti/${artista.id}`}
-                      className="text-blue-600 hover:text-blue-800 font-medium"
+                      className="text-blue-600 hover:text-blue-800 text-sm"
                     >
-                      Modifica
+                      Apri
                     </Link>
                   </td>
                 </tr>
               ))
             )}
           </tbody>
-        </table>
+          </table>
+        </div>
       </div>
     </div>
   )

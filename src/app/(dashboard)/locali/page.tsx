@@ -124,50 +124,51 @@ export default function LocaliPage() {
   return (
     <div>
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Locali</h1>
-          <p className="text-gray-500">Gestione luoghi di esibizione</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Locali</h1>
+          <p className="text-sm text-gray-500">Gestione luoghi di esibizione</p>
         </div>
         <Link
           href="/locali/nuovo"
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          className="flex items-center gap-1 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
         >
-          <Plus size={20} />
-          Nuovo Locale
+          <Plus size={16} />
+          <span>Nuovo</span>
         </Link>
       </div>
       
       {/* Filters */}
-      <div className="bg-white rounded-lg shadow-sm p-4 mb-6">
-        <div className="flex flex-wrap gap-4">
-          <div className="flex-1 min-w-64">
+      <div className="bg-white rounded-lg shadow-sm p-3 sm:p-4 mb-6">
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="flex-1">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
               <input
                 type="text"
-                placeholder="Cerca per nome, città, indirizzo, committente..."
+                placeholder="Cerca..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
               />
             </div>
           </div>
-          <select 
-            value={filtroTipo}
-            onChange={(e) => setFiltroTipo(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="">Tutti i tipi</option>
-            {Object.entries(TIPI_LOCALE).map(([key, value]) => (
-              <option key={key} value={key}>{value}</option>
-            ))}
-          </select>
-          <select 
-            value={filtroCommittente}
-            onChange={(e) => setFiltroCommittente(e.target.value as any)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-          >
+          <div className="flex gap-2">
+            <select 
+              value={filtroTipo}
+              onChange={(e) => setFiltroTipo(e.target.value)}
+              className="flex-1 sm:flex-none px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">Tipo</option>
+              {Object.entries(TIPI_LOCALE).map(([key, value]) => (
+                <option key={key} value={key}>{value}</option>
+              ))}
+            </select>
+            <select 
+              value={filtroCommittente}
+              onChange={(e) => setFiltroCommittente(e.target.value as any)}
+              className="flex-1 sm:flex-none px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+            >
             <option value="tutti">Tutti ({stats.totali})</option>
             <option value="con_committente">Con committente ({stats.conCommittente})</option>
             <option value="senza_committente">Senza committente ({stats.senzaCommittente})</option>

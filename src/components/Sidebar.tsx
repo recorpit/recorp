@@ -133,7 +133,7 @@ const menuSections: MenuSection[] = [
       { href: '/fatturazione', label: 'Fatture Committenti', icon: Receipt, permesso: 'fatture.visualizza' },
       { href: '/pagamenti/occasionali', label: 'Prestazioni Occasionali', icon: Receipt, permesso: 'prestazioni.visualizza' },
       { href: '/pagamenti/contratti', label: 'Contratti / P.IVA', icon: CreditCard, permesso: 'pagamenti.visualizza' },
-      { href: '/movimenti-bancari', label: 'Movimenti Bancari', icon: Landmark, badge: 'Soon', disabled: true },
+      { href: '/movimenti-bancari', label: 'Tesoreria', icon: Landmark },
     ]
   },
   {

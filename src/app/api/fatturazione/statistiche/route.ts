@@ -1,8 +1,10 @@
-// src/app/api/fatturazione/statistiche/route.ts
+﻿// src/app/api/fatturazione/statistiche/route.ts
 // API Statistiche Fatturazione - Dashboard
 
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
+
+export const dynamic = 'force-dynamic'
 
 export async function GET(request: NextRequest) {
   try {

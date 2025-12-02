@@ -1,6 +1,8 @@
-// src/app/api/pagamenti/route.ts
+﻿// src/app/api/pagamenti/route.ts
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
+
+export const dynamic = 'force-dynamic'
 
 // GET - Lista pagamenti artisti da effettuare
 export async function GET(request: NextRequest) {

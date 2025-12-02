@@ -1,8 +1,10 @@
-// src/app/api/auth/verifica-invito/route.ts
+﻿// src/app/api/auth/verifica-invito/route.ts
 // API Verifica Token Invito
 
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
+
+export const dynamic = 'force-dynamic'
 
 export async function GET(request: NextRequest) {
   try {

@@ -1,8 +1,10 @@
-// src/app/api/fatturazione/da-fatturare/route.ts
+﻿// src/app/api/fatturazione/da-fatturare/route.ts
 // API Agibilità da Fatturare - Raggruppate per Committente
 
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
+
+export const dynamic = 'force-dynamic'
 
 export async function GET(request: NextRequest) {
   try {

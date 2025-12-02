@@ -1,6 +1,8 @@
-// src/app/api/dashboard/route.ts
+﻿// src/app/api/dashboard/route.ts
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
+
+export const dynamic = 'force-dynamic'
 
 // GET - Statistiche dashboard
 export async function GET(request: NextRequest) {

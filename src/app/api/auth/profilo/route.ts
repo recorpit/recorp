@@ -1,9 +1,11 @@
-// src/app/api/auth/profilo/route.ts
+﻿// src/app/api/auth/profilo/route.ts
 // API Aggiornamento Profilo Utente
 
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/db'
+
+export const dynamic = 'force-dynamic'
 
 export async function PUT(request: NextRequest) {
   try {

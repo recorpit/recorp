@@ -1,10 +1,12 @@
-// src/app/api/permessi/route.ts
+﻿// src/app/api/permessi/route.ts
 // API Lista Permessi
 
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/db'
 import { MODULI, AZIONI } from '@/lib/permessi'
+
+export const dynamic = 'force-dynamic'
 
 // GET - Lista tutti i permessi
 export async function GET(request: NextRequest) {

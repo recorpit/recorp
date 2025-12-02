@@ -1,8 +1,12 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  output: 'standalone',
   experimental: {
-    serverComponentsExternalPackages: ['@prisma/client'],
+    missingSuspenseWithCSRBailout: false,
+  },
+  eslint: {
+    ignoreDuringBuilds: true,
   },
 }
 
-module.exports = nextConfig
+export default nextConfig

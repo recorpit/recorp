@@ -1,6 +1,8 @@
-// src/app/api/impostazioni/email/route.ts
+﻿// src/app/api/impostazioni/email/route.ts
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
+
+export const dynamic = 'force-dynamic'
 
 // Impostazioni email di default (tutto disabilitato)
 const DEFAULT_EMAIL_SETTINGS = {

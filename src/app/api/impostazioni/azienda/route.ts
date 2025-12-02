@@ -1,6 +1,8 @@
-// src/app/api/impostazioni/azienda/route.ts
+﻿// src/app/api/impostazioni/azienda/route.ts
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
+
+export const dynamic = 'force-dynamic'
 
 export async function GET() {
   try {

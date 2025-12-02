@@ -1,7 +1,9 @@
-// src/app/api/export/artisti/route.ts
+﻿// src/app/api/export/artisti/route.ts
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import * as XLSX from 'xlsx'
+
+export const dynamic = 'force-dynamic'
 
 export async function GET() {
   try {

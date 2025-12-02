@@ -1,9 +1,11 @@
-// src/app/api/auth/miei-permessi/route.ts
+﻿// src/app/api/auth/miei-permessi/route.ts
 // API per ottenere i permessi dell'utente corrente
 
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { getPermessiUtente } from '@/lib/permessi'
+
+export const dynamic = 'force-dynamic'
 
 export async function GET(request: NextRequest) {
   try {

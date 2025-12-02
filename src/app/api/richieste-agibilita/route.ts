@@ -3,8 +3,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { auth } from '@/lib/auth'
 
 export const dynamic = 'force-dynamic'
 
@@ -18,7 +17,7 @@ function generateCodice(): string {
 // GET - Lista richieste
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
+    const session = await auth()
     if (!session) {
       return NextResponse.json({ error: 'Non autorizzato' }, { status: 401 })
     }
@@ -84,7 +83,7 @@ export async function GET(request: NextRequest) {
 // POST - Nuova richiesta
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
+    const session = await auth()
     if (!session) {
       return NextResponse.json({ error: 'Non autorizzato' }, { status: 401 })
     }
@@ -147,7 +146,7 @@ export async function POST(request: NextRequest) {
     const richiesta = await prisma.richiestaAgibilita.create({
       data: {
         codice,
-        richiedente: session.user?.name || session.user?.email || 'Utente',
+        richiedente: session.user?.nome ? `${session.user.nome} ${session.user.cognome || ''}`.trim() : session.user?.email || 'Utente',
         emailRichiedente: session.user?.email || null,
         datiRichiesta,
         note: body.note || null,

@@ -30,7 +30,8 @@ import {
   UserCog,
   Loader2,
   Menu,
-  X
+  X,
+  Landmark
 } from 'lucide-react'
 import { useState, useEffect, useMemo } from 'react'
 
@@ -84,7 +85,7 @@ const menuSections: MenuSection[] = [
     permesso: 'agibilita.visualizza',
     items: [
       { href: '/agibilita', label: 'Lista Agibilità', icon: List, permesso: 'agibilita.visualizza' },
-      { href: '/agibilita/richieste', label: 'Richieste Agibilità', icon: Inbox, badge: '0', permesso: 'agibilita.visualizza' },
+      { href: '/richieste-agibilita', label: 'Richieste', icon: Inbox, permesso: 'agibilita.visualizza' },
       { href: '/agibilita/nuova', label: 'Nuova Agibilità', icon: Plus, permesso: 'agibilita.crea' },
     ]
   },
@@ -132,6 +133,7 @@ const menuSections: MenuSection[] = [
       { href: '/fatturazione', label: 'Fatture Committenti', icon: Receipt, permesso: 'fatture.visualizza' },
       { href: '/pagamenti/occasionali', label: 'Prestazioni Occasionali', icon: Receipt, permesso: 'prestazioni.visualizza' },
       { href: '/pagamenti/contratti', label: 'Contratti / P.IVA', icon: CreditCard, permesso: 'pagamenti.visualizza' },
+      { href: '/movimenti-bancari', label: 'Movimenti Bancari', icon: Landmark, badge: 'Soon', disabled: true },
     ]
   },
   {

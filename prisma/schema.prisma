@@ -241,36 +241,37 @@ model Notifica {
 }
 
 model Fattura {
-  id                  String             @id @default(cuid())
-  numero              String             @unique
+  id                  String              @id @default(cuid())
+  numero              String              @unique
   anno                Int
   progressivo         Int
   committenteId       String
   dataEmissione       DateTime
   dataScadenza        DateTime?
-  imponibile          Decimal            @db.Decimal(10, 2)
-  iva                 Decimal            @db.Decimal(10, 2)
-  totale              Decimal            @db.Decimal(10, 2)
-  stato               StatoFattura       @default(BOZZA)
+  imponibile          Decimal             @db.Decimal(10, 2)
+  iva                 Decimal             @db.Decimal(10, 2)
+  totale              Decimal             @db.Decimal(10, 2)
+  stato               StatoFattura        @default(BOZZA)
   pdfPath             String?
   xmlPath             String?
   dataPagamento       DateTime?
   note                String?
-  tipoPagamento       String             @default("BONIFICO_VISTA")
+  tipoPagamento       String              @default("BONIFICO_VISTA")
   dataEsportazione    DateTime?
-  createdAt           DateTime           @default(now())
-  updatedAt           DateTime           @updatedAt
-  modalitaRighe       String?            @default("DETTAGLIO_SPESE_INCLUSE")
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+  modalitaRighe       String?             @default("DETTAGLIO_SPESE_INCLUSE")
   descrizioneGenerica String?
-  aliquotaIva         Int                @default(22)
-  splitPayment        Boolean            @default(false)
+  aliquotaIva         Int                 @default(22)
+  splitPayment        Boolean             @default(false)
   righeFattura        Json?
   causale             String?
   progressivoInvio    String?
   scadenzaPagamentoId String?
   agibilita           Agibilita[]
-  committente         Committente        @relation(fields: [committenteId], references: [id])
-  scadenzaPagamento   ScadenzaPagamento? @relation(fields: [scadenzaPagamentoId], references: [id])
+  committente         Committente         @relation(fields: [committenteId], references: [id])
+  scadenzaPagamento   ScadenzaPagamento?  @relation(fields: [scadenzaPagamentoId], references: [id])
+  MovimentoBancario   MovimentoBancario[]
   noteDiCredito       NotaDiCredito[]
 
   @@unique([anno, progressivo])
@@ -712,6 +713,23 @@ model UserFormat {
   @@unique([userId, formatId])
   @@index([userId])
   @@index([formatId])
+}
+
+model MovimentoBancario {
+  id                 String    @id @default(dbgenerated("gen_random_uuid()"))
+  data               DateTime  @db.Timestamp(6)
+  dataValuta         DateTime  @db.Timestamp(6)
+  descrizione        String
+  importo            Decimal   @db.Decimal(10, 2)
+  tipo               String    @default("ENTRATA")
+  stato              String    @default("DA_RICONCILIARE")
+  riferimentoInterno String?
+  fatturaId          String?
+  pagamentoId        String?
+  note               String?
+  createdAt          DateTime? @default(now()) @db.Timestamp(6)
+  updatedAt          DateTime? @default(now()) @db.Timestamp(6)
+  Fattura            Fattura?  @relation(fields: [fatturaId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 }
 
 enum StatoUtente {

@@ -4,8 +4,10 @@
 import { useState, useEffect } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, Save, X, AlertTriangle, Calendar, MapPin, Users, Euro, Plus, Calculator } from 'lucide-react'
+import { ArrowLeft, Save, X, AlertTriangle, Calendar, MapPin, Users, Euro, Plus, Calculator, Edit2 } from 'lucide-react'
 import AutocompleteArtista from '@/components/AutocompleteArtista'
+import AutocompleteLocale from '@/components/AutocompleteLocale'
+import AutocompleteCommittente from '@/components/AutocompleteCommittente'
 import { calcolaCompensi } from '@/lib/constants'
 import Modal from '@/components/Modal'
 
@@ -90,6 +92,13 @@ export default function ModificaAgibilitaPage() {
     noteInterne: '',
   })
   
+  // Stato per locale e committente modificabili
+  const [localeId, setLocaleId] = useState<string | null>(null)
+  const [localeNome, setLocaleNome] = useState('')
+  const [committenteId, setCommittenteId] = useState<string | null>(null)
+  const [committenteNome, setCommittenteNome] = useState('')
+  const [quotaCommittente, setQuotaCommittente] = useState(0)
+  
   const [periodi, setPeriodi] = useState<Periodo[]>([])
   
   // Totali
@@ -127,6 +136,13 @@ export default function ModificaAgibilitaPage() {
           note: data.note || '',
           noteInterne: data.noteInterne || '',
         })
+        
+        // Inizializza locale e committente
+        setLocaleId(data.localeId || null)
+        setLocaleNome(data.locale?.nome || '')
+        setCommittenteId(data.committenteId || null)
+        setCommittenteNome(data.committente?.ragioneSociale || '')
+        setQuotaCommittente(parseFloat(data.committente?.quotaAgenzia || '0'))
         
         // Raggruppa artisti per dataInizio/dataFine per creare periodi
         const periodiMap = new Map<string, Periodo>()
@@ -181,11 +197,11 @@ export default function ModificaAgibilitaPage() {
     loadAgibilita()
   }, [id])
   
-  // Ricalcola totali quando cambiano periodi
+  // Ricalcola totali quando cambiano periodi o quota committente
   useEffect(() => {
     if (!agibilita) return
     
-    const quotaUnitaria = parseFloat(agibilita.committente?.quotaAgenzia?.toString() || '0')
+    const quotaUnitaria = quotaCommittente
     
     let numPrestazioni = 0
     periodi.forEach(p => {
@@ -429,6 +445,8 @@ export default function ModificaAgibilitaPage() {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          localeId: localeId,
+          committenteId: committenteId,
           periodi: periodiDaInviare,
           quotaAgenzia: totali.quotaAgenzia,
           totaleCompensiNetti: totali.netto,
@@ -545,19 +563,49 @@ export default function ModificaAgibilitaPage() {
           <div className="bg-white rounded-lg shadow-sm p-6">
             <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
               <MapPin size={20} />
-              Riferimenti (non modificabili)
+              Riferimenti
             </h2>
-            <div className="grid grid-cols-2 gap-4 text-sm">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <span className="text-gray-500">Locale:</span>
-                <p className="font-medium">{agibilita.locale?.nome}</p>
-                <p className="text-xs text-gray-400">{agibilita.locale?.citta} ({agibilita.locale?.provincia})</p>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Locale *</label>
+                <AutocompleteLocale
+                  value={localeId}
+                  onChange={(id, locale) => {
+                    setLocaleId(id)
+                    setLocaleNome(locale?.nome || '')
+                    // Se il locale ha un committente di default, suggeriscilo
+                    if (locale?.committenteDefault && !committenteId) {
+                      setCommittenteId(locale.committenteDefault.id)
+                      setCommittenteNome(locale.committenteDefault.ragioneSociale)
+                      setQuotaCommittente(parseFloat(locale.committenteDefault.quotaAgenzia || '0'))
+                    }
+                  }}
+                  placeholder="Cerca locale..."
+                />
+                {localeNome && (
+                  <p className="text-xs text-gray-500 mt-1">Selezionato: {localeNome}</p>
+                )}
               </div>
               <div>
-                <span className="text-gray-500">Committente:</span>
-                <p className="font-medium">{agibilita.committente?.ragioneSociale || 'Non assegnato'}</p>
-                {quotaCommittente > 0 && (
-                  <p className="text-xs text-blue-500">Quota: €{quotaCommittente.toFixed(2)} per prestazione</p>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Committente</label>
+                <AutocompleteCommittente
+                  value={committenteId}
+                  onChange={(id, committente) => {
+                    setCommittenteId(id)
+                    setCommittenteNome(committente?.ragioneSociale || '')
+                    setQuotaCommittente(parseFloat(committente?.quotaAgenzia || '0'))
+                  }}
+                  placeholder="Cerca committente..."
+                />
+                {committenteNome && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    Selezionato: {committenteNome}
+                    {quotaCommittente > 0 && (
+                      <span className="text-blue-500 ml-2">
+                        (Quota: €{quotaCommittente.toFixed(2)}/prestazione)
+                      </span>
+                    )}
+                  </p>
                 )}
               </div>
             </div>

@@ -109,6 +109,8 @@ interface UpdateFatturaBody {
   totale?: number;
   modalitaRighe?: string;
   numero?: string;
+  progressivo?: number;
+  dataEmissione?: string;
   descrizioneGenerica?: string;
 }
 
@@ -212,8 +214,27 @@ export async function PUT(
         }
       }
       
-      // Numero fattura (verifica duplicati)
-      if (body.numero !== undefined && body.numero !== fattura.numero) {
+      // Numero fattura e progressivo (verifica duplicati)
+      if (body.progressivo !== undefined && body.progressivo !== fattura.progressivo) {
+        // Verifica che il nuovo progressivo non esista già per quest'anno
+        const esistente = await prisma.fattura.findFirst({
+          where: {
+            anno: fattura.anno,
+            progressivo: body.progressivo,
+            id: { not: id }
+          }
+        });
+        if (esistente) {
+          return NextResponse.json(
+            { error: `Il numero fattura ${body.progressivo}/${fattura.anno} è già utilizzato` },
+            { status: 400 }
+          );
+        }
+        updateData.progressivo = body.progressivo;
+        updateData.numero = `${body.progressivo}/${fattura.anno}`;
+        updateData.progressivoInvio = `${String(fattura.anno).slice(-2)}${String(body.progressivo).padStart(5, '0')}`;
+      } else if (body.numero !== undefined && body.numero !== fattura.numero) {
+        // Supporto retrocompatibilità con campo numero
         const esistente = await prisma.fattura.findFirst({
           where: {
             numero: body.numero,
@@ -226,7 +247,18 @@ export async function PUT(
             { status: 400 }
           );
         }
+        // Estrai progressivo dal numero se possibile
+        const match = body.numero.match(/^(\d+)\/(\d+)$/);
+        if (match) {
+          updateData.progressivo = parseInt(match[1]);
+          updateData.progressivoInvio = `${String(fattura.anno).slice(-2)}${String(match[1]).padStart(5, '0')}`;
+        }
         updateData.numero = body.numero;
+      }
+      
+      // Data emissione
+      if (body.dataEmissione !== undefined) {
+        updateData.dataEmissione = new Date(body.dataEmissione);
       }
       
       // Descrizione generica

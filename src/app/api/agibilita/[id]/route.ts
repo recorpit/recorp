@@ -130,6 +130,8 @@ export async function PUT(
         return await tx.agibilita.update({
           where: { id },
           data: {
+            localeId: body.localeId !== undefined ? body.localeId : esistente.localeId,
+            committenteId: body.committenteId !== undefined ? body.committenteId : esistente.committenteId,
             data: new Date(dataMinima),
             dataFine: dataMassima !== dataMinima ? new Date(dataMassima) : null,
             quotaAgenzia: round2(Number(body.quotaAgenzia || 0)),

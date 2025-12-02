@@ -118,8 +118,10 @@ export default function DettaglioFatturaPage() {
     note: '',
     tipoPagamento: 'BONIFICO_30GG',
     dataScadenza: '',
+    dataEmissione: '',
     modalitaRighe: 'DETTAGLIO_SPESE_INCLUSE',
     numero: '',
+    progressivo: 0,
     descrizioneGenerica: '',
   })
   const [editRighe, setEditRighe] = useState<RigaFattura[]>([])
@@ -139,8 +141,10 @@ export default function DettaglioFatturaPage() {
           note: data.note || '',
           tipoPagamento: data.tipoPagamento || 'BONIFICO_30GG',
           dataScadenza: data.dataScadenza ? data.dataScadenza.split('T')[0] : '',
+          dataEmissione: data.dataEmissione ? data.dataEmissione.split('T')[0] : '',
           modalitaRighe: data.modalitaRighe || 'DETTAGLIO_SPESE_INCLUSE',
           numero: data.numero || '',
+          progressivo: data.progressivo || 0,
           descrizioneGenerica: data.descrizioneGenerica || '',
         })
         setEditRighe(data.righeFattura || [])
@@ -220,8 +224,9 @@ export default function DettaglioFatturaPage() {
           note: editData.note,
           tipoPagamento: editData.tipoPagamento,
           dataScadenza: editData.dataScadenza ? new Date(editData.dataScadenza).toISOString() : null,
+          dataEmissione: editData.dataEmissione ? new Date(editData.dataEmissione).toISOString() : undefined,
           modalitaRighe: editData.modalitaRighe,
-          numero: editData.numero,
+          progressivo: editData.progressivo,
           descrizioneGenerica: editData.descrizioneGenerica,
           righeFattura: editRighe,
           imponibile,
@@ -790,13 +795,27 @@ export default function DettaglioFatturaPage() {
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Numero Fattura</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Numero Fattura (progressivo)</label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      value={editData.progressivo}
+                      onChange={(e) => setEditData({ ...editData, progressivo: parseInt(e.target.value) || 0 })}
+                      min="1"
+                      className="w-24 px-4 py-2 border border-gray-300 rounded-lg"
+                    />
+                    <span className="text-gray-500">/ {fattura.anno}</span>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">Verrà: {editData.progressivo}/{fattura.anno}</p>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Data Emissione</label>
                   <input
-                    type="text"
-                    value={editData.numero}
-                    onChange={(e) => setEditData({ ...editData, numero: e.target.value })}
+                    type="date"
+                    value={editData.dataEmissione}
+                    onChange={(e) => setEditData({ ...editData, dataEmissione: e.target.value })}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                    placeholder="Es: 1/2025"
                   />
                 </div>
                 

@@ -11,6 +11,9 @@ import {
   CheckCircle,
 } from 'lucide-react'
 
+export const dynamic = 'force-dynamic'
+
+// ... resto del codice
 async function getStats() {
   const [
     totaleArtisti,

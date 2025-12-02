@@ -481,14 +481,44 @@ export default function DettaglioFatturaPage() {
           </Link>
           <div>
             <div className="flex items-center gap-3">
-              <h1 className="text-2xl font-bold text-gray-900">Fattura {fattura.numero}</h1>
+              {isBozza ? (
+                <div className="flex items-center gap-2">
+                  <span className="text-2xl font-bold text-gray-900">Fattura n.</span>
+                  <input
+                    type="number"
+                    value={editData.progressivo}
+                    onChange={(e) => {
+                      const newVal = parseInt(e.target.value) || 0
+                      setEditData({ ...editData, progressivo: newVal })
+                    }}
+                    onBlur={handleSaveBozza}
+                    min="1"
+                    className="w-20 text-2xl font-bold text-gray-900 border-b-2 border-blue-300 focus:border-blue-500 bg-transparent outline-none text-center"
+                  />
+                </div>
+              ) : (
+                <h1 className="text-2xl font-bold text-gray-900">Fattura {fattura.numero}</h1>
+              )}
               <span className={`px-3 py-1 rounded-full text-sm font-medium ${statoInfo.bg} ${statoInfo.text}`}>
                 {statoInfo.label}
               </span>
             </div>
-            <p className="text-gray-500">
-              Emessa il {format(new Date(fattura.dataEmissione), 'd MMMM yyyy', { locale: it })}
-            </p>
+            {isBozza ? (
+              <div className="flex items-center gap-2 text-gray-500">
+                <span>Emessa il</span>
+                <input
+                  type="date"
+                  value={editData.dataEmissione}
+                  onChange={(e) => setEditData({ ...editData, dataEmissione: e.target.value })}
+                  onBlur={handleSaveBozza}
+                  className="border-b border-gray-300 focus:border-blue-500 bg-transparent outline-none"
+                />
+              </div>
+            ) : (
+              <p className="text-gray-500">
+                Emessa il {format(new Date(fattura.dataEmissione), 'd MMMM yyyy', { locale: it })}
+              </p>
+            )}
           </div>
         </div>
         
@@ -795,18 +825,14 @@ export default function DettaglioFatturaPage() {
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Numero Fattura (progressivo)</label>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="number"
-                      value={editData.progressivo}
-                      onChange={(e) => setEditData({ ...editData, progressivo: parseInt(e.target.value) || 0 })}
-                      min="1"
-                      className="w-24 px-4 py-2 border border-gray-300 rounded-lg"
-                    />
-                    <span className="text-gray-500">/ {fattura.anno}</span>
-                  </div>
-                  <p className="text-xs text-gray-500 mt-1">Verrà: {editData.progressivo}/{fattura.anno}</p>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Numero Fattura</label>
+                  <input
+                    type="number"
+                    value={editData.progressivo}
+                    onChange={(e) => setEditData({ ...editData, progressivo: parseInt(e.target.value) || 0 })}
+                    min="1"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                  />
                 </div>
                 
                 <div>

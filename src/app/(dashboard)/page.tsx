@@ -196,7 +196,7 @@ export default async function DashboardPage() {
             </div>
           ) : (
             <div className="space-y-3">
-              {agibilitaRecenti.map((ag) => {
+              {agibilitaRecenti.map((ag: any) => {
                 const primoArtista = ag.artisti[0]?.artista
                 const numArtisti = ag.artisti.length
                 
@@ -269,7 +269,7 @@ export default async function DashboardPage() {
             </div>
           ) : (
             <div className="space-y-3">
-              {bozzeAttive.map((bozza) => {
+              {bozzeAttive.map((bozza: any) => {
                 const isLocked = bozza.lockedById && bozza.lockScadeAt && new Date() < bozza.lockScadeAt
                 const creatoDa = bozza.User_BozzaAgibilita_creatoDaIdToUser
                 const lockedBy = bozza.User_BozzaAgibilita_lockedByIdToUser

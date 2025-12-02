@@ -18,6 +18,8 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const stato = searchParams.get('stato')
     const tipo = searchParams.get('tipo')
+    const categoria = searchParams.get('categoria')
+    const nonCategorizzati = searchParams.get('nonCategorizzati')
     const from = searchParams.get('from')
     const to = searchParams.get('to')
     const limit = parseInt(searchParams.get('limit') || '100')
@@ -32,6 +34,14 @@ export async function GET(request: NextRequest) {
       where.tipo = tipo
     }
     
+    if (categoria) {
+      where.categoria = categoria
+    }
+    
+    if (nonCategorizzati === 'true') {
+      where.categoria = null
+    }
+    
     if (from || to) {
       where.data = {}
       if (from) where.data.gte = new Date(from)
@@ -44,18 +54,18 @@ export async function GET(request: NextRequest) {
       take: limit,
     })
     
-    // Calcola stats
+    // Calcola stats (su tutti i movimenti, non filtrati)
     const allMovimenti = await prisma.movimentoBancario.findMany({
-      where,
-      select: { importo: true, tipo: true, stato: true }
+      select: { importo: true, tipo: true, stato: true, categoria: true }
     })
     
     const stats = {
       totaleEntrate: allMovimenti.filter(m => m.tipo === 'ENTRATA').reduce((s, m) => s + Number(m.importo), 0),
       totaleUscite: allMovimenti.filter(m => m.tipo === 'USCITA').reduce((s, m) => s + Math.abs(Number(m.importo)), 0),
       saldo: allMovimenti.reduce((s, m) => s + Number(m.importo), 0),
-      daRiconciliare: allMovimenti.filter(m => m.stato === 'DA_RICONCILIARE').length,
-      riconciliati: allMovimenti.filter(m => m.stato === 'RICONCILIATO').length,
+      daVerificare: allMovimenti.filter(m => m.stato === 'DA_VERIFICARE').length,
+      verificati: allMovimenti.filter(m => m.stato === 'VERIFICATO').length,
+      nonCategorizzati: allMovimenti.filter(m => !m.categoria).length,
     }
     
     return NextResponse.json({ movimenti, stats })
@@ -86,7 +96,8 @@ export async function POST(request: NextRequest) {
         descrizione: body.descrizione,
         importo: body.importo,
         tipo: body.importo >= 0 ? 'ENTRATA' : 'USCITA',
-        stato: 'DA_RICONCILIARE',
+        stato: 'DA_VERIFICARE',
+        categoria: body.categoria || null,
         riferimentoInterno: body.riferimentoInterno || null,
         note: body.note || null,
       },

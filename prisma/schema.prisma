@@ -729,6 +729,7 @@ model MovimentoBancario {
   note               String?
   createdAt          DateTime? @default(now()) @db.Timestamp(6)
   updatedAt          DateTime? @default(now()) @db.Timestamp(6)
+  categoria          String?
   Fattura            Fattura?  @relation(fields: [fatturaId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 }
 

@@ -192,29 +192,29 @@ export default function LocaliPage() {
       
       {/* Table */}
       <div className="bg-white rounded-lg shadow-sm overflow-hidden">
-        <table className="w-full">
-          <thead className="bg-gray-50 border-b border-gray-200">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Locale
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Indirizzo
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Cod. Belfiore
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Committente Default
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Agibilità
-              </th>
-              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Azioni
-              </th>
-            </tr>
-          </thead>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[800px]">
+            <thead className="bg-gray-50 border-b border-gray-200">
+              <tr>
+                <th className="px-3 sm:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  Locale
+                </th>
+                <th className="px-3 sm:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase hidden sm:table-cell">
+                  Indirizzo
+                </th>
+                <th className="px-3 sm:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  Belfiore
+                </th>
+                <th className="px-3 sm:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase hidden md:table-cell">
+                  Committente
+                </th>
+                <th className="px-3 sm:px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">
+                  Agib.
+                </th>
+                <th className="px-3 sm:px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                </th>
+              </tr>
+            </thead>
           <tbody className="divide-y divide-gray-200">
             {localiFiltrati.length === 0 ? (
               <tr>
@@ -247,68 +247,61 @@ export default function LocaliPage() {
               localiFiltrati.map((locale) => (
                 <tr key={locale.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center">
-                        <MapPin size={20} className="text-green-600" />
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-lg bg-green-100 flex items-center justify-center">
+                        <MapPin size={16} className="text-green-600" />
                       </div>
                       <div>
-                        <p className="font-medium text-gray-900">{locale.nome}</p>
-                        <p className="text-sm text-gray-500">
+                        <p className="font-medium text-gray-900 text-sm">{locale.nome}</p>
+                        <p className="text-xs text-gray-500">
                           {TIPI_LOCALE[locale.tipoLocale] || locale.tipoLocale}
                         </p>
                       </div>
                     </div>
                   </td>
-                  <td className="px-6 py-4">
-                    <div className="text-sm">
-                      {locale.indirizzo && <p className="text-gray-900">{locale.indirizzo}</p>}
+                  <td className="px-3 sm:px-4 py-3 hidden sm:table-cell">
+                    <div className="text-xs">
+                      {locale.indirizzo && <p className="text-gray-900 truncate max-w-[150px]">{locale.indirizzo}</p>}
                       <p className="text-gray-500">
                         {[locale.citta, locale.provincia].filter(Boolean).join(' ')}
-                        {locale.cap && ` - ${locale.cap}`}
                       </p>
                     </div>
                   </td>
-                  <td className="px-6 py-4">
+                  <td className="px-3 sm:px-4 py-3">
                     {locale.codiceBelfiore ? (
-                      <span className="font-mono text-sm bg-gray-100 px-2 py-1 rounded">
+                      <span className="font-mono text-xs bg-gray-100 px-1.5 py-0.5 rounded">
                         {locale.codiceBelfiore}
                       </span>
                     ) : (
-                      <span className="text-gray-400 text-sm">-</span>
+                      <span className="text-gray-400 text-xs">-</span>
                     )}
                   </td>
-                  <td className="px-6 py-4">
+                  <td className="px-3 sm:px-4 py-3 hidden md:table-cell">
                     {locale.committenteDefault ? (
-                      <Link 
-                        href={`/committenti/${locale.committenteDefault.id}`}
-                        className="text-sm text-blue-600 hover:underline flex items-center gap-1"
-                      >
-                        <Building2 size={14} />
+                      <span className="text-xs text-gray-900 truncate max-w-[120px] block">
                         {locale.committenteDefault.ragioneSociale}
-                        {locale.committenteDefault.aRischio && (
-                          <span className="text-red-500 ml-1" title="A rischio">⚠️</span>
-                        )}
-                      </Link>
+                      </span>
                     ) : (
-                      <span className="text-gray-400 text-sm">Non impostato</span>
+                      <span className="text-gray-400 text-xs">-</span>
                     )}
                   </td>
-                  <td className="px-6 py-4">
-                    <span className="text-gray-900">{locale._count.agibilita}</span>
+                  <td className="px-3 sm:px-4 py-3 text-center">
+                    <span className="text-gray-900 text-sm">{locale._count.agibilita}</span>
                   </td>
-                  <td className="px-6 py-4 text-right">
+                  <td className="px-3 sm:px-4 py-3 text-right">
                     <Link
                       href={`/locali/${locale.id}`}
-                      className="text-blue-600 hover:text-blue-800 font-medium"
+                      className="text-blue-600 hover:text-blue-800 text-sm"
                     >
-                      Modifica
+                      Apri
                     </Link>
                   </td>
                 </tr>
               ))
             )}
           </tbody>
-        </table>
+          </table>
+        </div>
       </div>
     </div>
   )

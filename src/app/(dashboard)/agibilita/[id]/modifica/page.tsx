@@ -242,7 +242,7 @@ export default function ModificaAgibilitaPage() {
       numPrestazioni,
       importoFattura: totLordo + quotaTotale,
     })
-  }, [periodi, agibilita])
+  }, [periodi, agibilita, quotaCommittente])
 
   // Gestione periodi
   const addPeriodo = () => {
@@ -492,7 +492,6 @@ export default function ModificaAgibilitaPage() {
   }
 
   const giàInviataINPS = !!agibilita.identificativoINPS
-  const quotaCommittente = parseFloat(agibilita.committente?.quotaAgenzia || 0)
 
   // Tutti gli artisti per statistiche
   const tuttiArtisti = periodi.flatMap(p => p.artisti)
@@ -573,12 +572,6 @@ export default function ModificaAgibilitaPage() {
                   onChange={(id, locale) => {
                     setLocaleId(id)
                     setLocaleNome(locale?.nome || '')
-                    // Se il locale ha un committente di default, suggeriscilo
-                    if (locale?.committenteDefault && !committenteId) {
-                      setCommittenteId(locale.committenteDefault.id)
-                      setCommittenteNome(locale.committenteDefault.ragioneSociale)
-                      setQuotaCommittente(parseFloat(locale.committenteDefault.quotaAgenzia || '0'))
-                    }
                   }}
                   placeholder="Cerca locale..."
                 />
@@ -593,18 +586,12 @@ export default function ModificaAgibilitaPage() {
                   onChange={(id, committente) => {
                     setCommittenteId(id)
                     setCommittenteNome(committente?.ragioneSociale || '')
-                    setQuotaCommittente(parseFloat(committente?.quotaAgenzia || '0'))
                   }}
                   placeholder="Cerca committente..."
                 />
                 {committenteNome && (
                   <p className="text-xs text-gray-500 mt-1">
                     Selezionato: {committenteNome}
-                    {quotaCommittente > 0 && (
-                      <span className="text-blue-500 ml-2">
-                        (Quota: €{quotaCommittente.toFixed(2)}/prestazione)
-                      </span>
-                    )}
                   </p>
                 )}
               </div>

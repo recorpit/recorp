@@ -147,6 +147,7 @@ export async function POST(request: NextRequest) {
                 nome: true,
                 cognome: true,
                 nomeDarte: true,
+                qualifica: true,
               }
             }
           }
@@ -242,15 +243,16 @@ export async function POST(request: NextRequest) {
       // Una riga per artista con spese incluse
       let lineNum = 1;
       agibilita.forEach(agi => {
+        const dataAgi = agi.data.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' });
         agi.artisti.forEach(aa => {
           const importo = round2(Number(aa.compensoLordo) + quotaPerArtista);
-          const nome = aa.artista.nomeDarte 
-            ? `${aa.artista.nome} ${aa.artista.cognome} - "${aa.artista.nomeDarte}"`
-            : `${aa.artista.nome} ${aa.artista.cognome}`;
+          const qualifica = aa.qualifica || aa.artista.qualifica || 'Artista';
+          const nomeDarte = aa.artista.nomeDarte ? `${aa.artista.nomeDarte} - ` : '';
+          const nomeCompleto = `${aa.artista.nome} ${aa.artista.cognome}`;
           
           righe.push({
             numeroLinea: lineNum++,
-            descrizione: `${nome} - Compenso e gestione`,
+            descrizione: `${qualifica} ${nomeDarte}${nomeCompleto} - ${dataAgi}`,
             quantita: 1,
             prezzoUnitario: importo,
             prezzoTotale: importo,
@@ -267,15 +269,16 @@ export async function POST(request: NextRequest) {
       let totaleSpese = 0;
       
       agibilita.forEach(agi => {
+        const dataAgi = agi.data.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' });
         agi.artisti.forEach(aa => {
           const compenso = round2(Number(aa.compensoLordo));
-          const nome = aa.artista.nomeDarte 
-            ? `${aa.artista.nome} ${aa.artista.cognome} - "${aa.artista.nomeDarte}"`
-            : `${aa.artista.nome} ${aa.artista.cognome}`;
+          const qualifica = aa.qualifica || aa.artista.qualifica || 'Artista';
+          const nomeDarte = aa.artista.nomeDarte ? `${aa.artista.nomeDarte} - ` : '';
+          const nomeCompleto = `${aa.artista.nome} ${aa.artista.cognome}`;
           
           righe.push({
             numeroLinea: lineNum++,
-            descrizione: `${nome} - Compenso lordo`,
+            descrizione: `${qualifica} ${nomeDarte}${nomeCompleto} - ${dataAgi}`,
             quantita: 1,
             prezzoUnitario: compenso,
             prezzoTotale: compenso,

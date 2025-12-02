@@ -7,12 +7,17 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const search = searchParams.get('search')
+    const searchNomeDarte = searchParams.get('searchNomeDarte')
     const iscritto = searchParams.get('iscritto')
     const qualifica = searchParams.get('qualifica')
+    const limit = searchParams.get('limit')
     
     const where: any = {}
     
-    if (search) {
+    // Ricerca solo per nome d'arte (privacy - per richieste)
+    if (searchNomeDarte) {
+      where.nomeDarte = { contains: searchNomeDarte, mode: 'insensitive' }
+    } else if (search) {
       // Divido la ricerca in parole per supportare "nome cognome" o "cognome nome"
       const parole = search.trim().split(/\s+/).filter(p => p.length > 0)
       
@@ -54,7 +59,8 @@ export async function GET(request: NextRequest) {
         _count: {
           select: { agibilita: true }
         }
-      }
+      },
+      take: limit ? parseInt(limit) : undefined,
     })
     
     return NextResponse.json(artisti)

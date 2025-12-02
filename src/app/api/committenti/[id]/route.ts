@@ -118,6 +118,7 @@ export async function PUT(
         isPubblicaAmministrazione: body.isPubblicaAmministrazione || false,
         splitPayment: body.splitPayment || false,
         modalitaFatturazione: body.modalitaFatturazione || 'DETTAGLIO_SPESE_INCLUSE',
+        timingFatturazione: body.timingFatturazione || 'SETTIMANALE',
         tipoPagamento: body.tipoPagamento || 'BONIFICO_30GG',
         scadenzaPagamentoId: body.scadenzaPagamentoId || null,
         

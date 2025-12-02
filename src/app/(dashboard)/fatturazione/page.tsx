@@ -47,7 +47,7 @@ interface AgibilitaDaFatturare {
 }
 
 interface CommittenteGroup {
-  committente: { id: string; ragioneSociale: string }
+  committente: { id: string; ragioneSociale: string; timingFatturazione?: string }
   agibilita: AgibilitaDaFatturare[]
   totale: number
   count: number
@@ -57,7 +57,9 @@ export default function FatturazionePage() {
   const [loading, setLoading] = useState(true)
   const [stats, setStats] = useState<StatisticheFatturazione | null>(null)
   const [agibilitaByCommittente, setAgibilitaByCommittente] = useState<CommittenteGroup[]>([])
+  const [anticipateByCommittente, setAnticipateByCommittente] = useState<CommittenteGroup[]>([])
   const [filtroMese, setFiltroMese] = useState<string>('tutti')
+  const [tabAttiva, setTabAttiva] = useState<'pronte' | 'anticipate'>('pronte')
   
   useEffect(() => {
     loadData()
@@ -71,11 +73,24 @@ export default function FatturazionePage() {
         setStats(await resStats.json())
       }
       
-      // Carica agibilità da fatturare raggruppate per committente
+      // Carica agibilità da fatturare raggruppate per committente (pronte)
       const resAgibilita = await fetch('/api/fatturazione/da-fatturare')
       if (resAgibilita.ok) {
         const data = await resAgibilita.json()
         setAgibilitaByCommittente(data.byCommittente || [])
+      }
+      
+      // Carica agibilità anticipate (future)
+      const resAnticipate = await fetch('/api/fatturazione/da-fatturare?anticipate=true')
+      if (resAnticipate.ok) {
+        const data = await resAnticipate.json()
+        // Filtra solo quelle future (non già presenti in pronte)
+        const idsPronte = new Set(agibilitaByCommittente.flatMap(g => g.agibilita.map((a: any) => a.id)))
+        const anticipate = data.byCommittente?.map((g: CommittenteGroup) => ({
+          ...g,
+          agibilita: g.agibilita.filter((a: any) => !idsPronte.has(a.id))
+        })).filter((g: CommittenteGroup) => g.agibilita.length > 0) || []
+        setAnticipateByCommittente(anticipate)
       }
       
     } catch (err) {
@@ -199,45 +214,127 @@ export default function FatturazionePage() {
             </div>
           </div>
           
+          {/* Tab Pronte / Anticipate */}
+          <div className="flex border-b border-gray-100">
+            <button
+              onClick={() => setTabAttiva('pronte')}
+              className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
+                tabAttiva === 'pronte' 
+                  ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50/50' 
+                  : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+              }`}
+            >
+              Pronte ({agibilitaByCommittente.reduce((sum, g) => sum + g.count, 0)})
+            </button>
+            <button
+              onClick={() => setTabAttiva('anticipate')}
+              className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
+                tabAttiva === 'anticipate' 
+                  ? 'text-orange-600 border-b-2 border-orange-600 bg-orange-50/50' 
+                  : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+              }`}
+            >
+              <span className="flex items-center justify-center gap-1">
+                <Calendar size={14} />
+                Anticipate ({anticipateByCommittente.reduce((sum, g) => sum + g.count, 0)})
+              </span>
+            </button>
+          </div>
+          
           {/* Lista raggruppata per committente */}
           <div className="max-h-96 overflow-y-auto">
-            {agibilitaByCommittente.length === 0 ? (
-              <div className="p-8 text-center text-gray-400">
-                <CheckCircle size={40} className="mx-auto mb-2 opacity-50" />
-                <p>Tutto fatturato!</p>
-              </div>
+            {tabAttiva === 'pronte' ? (
+              // Tab Pronte
+              agibilitaByCommittente.length === 0 ? (
+                <div className="p-8 text-center text-gray-400">
+                  <CheckCircle size={40} className="mx-auto mb-2 opacity-50" />
+                  <p>Tutto fatturato!</p>
+                </div>
+              ) : (
+                <div className="divide-y divide-gray-100">
+                  {agibilitaByCommittente.map((group) => (
+                    <Link
+                      key={group.committente.id}
+                      href={`/fatturazione/agibilita?committente=${group.committente.id}`}
+                      className="block p-4 hover:bg-gray-50 transition-colors"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
+                            <Building2 size={18} className="text-gray-500" />
+                          </div>
+                          <div>
+                            <p className="font-medium text-gray-900">
+                              {group.committente.ragioneSociale}
+                            </p>
+                            <div className="flex items-center gap-2">
+                              <p className="text-sm text-gray-500">
+                                {group.count} agibilità
+                              </p>
+                              {group.committente.timingFatturazione && (
+                                <span className={`text-xs px-1.5 py-0.5 rounded ${
+                                  group.committente.timingFatturazione === 'GIORNALIERA' ? 'bg-green-100 text-green-700' :
+                                  group.committente.timingFatturazione === 'MENSILE' ? 'bg-purple-100 text-purple-700' :
+                                  'bg-blue-100 text-blue-700'
+                                }`}>
+                                  {group.committente.timingFatturazione === 'GIORNALIERA' ? 'G' :
+                                   group.committente.timingFatturazione === 'MENSILE' ? 'M' : 'S'}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className="text-lg font-semibold text-gray-900">
+                            €{group.totale.toLocaleString('it-IT')}
+                          </span>
+                          <ChevronRight size={20} className="text-gray-400" />
+                        </div>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              )
             ) : (
-              <div className="divide-y divide-gray-100">
-                {agibilitaByCommittente.map((group) => (
-                  <Link
-                    key={group.committente.id}
-                    href={`/fatturazione/agibilita?committente=${group.committente.id}`}
-                    className="block p-4 hover:bg-gray-50 transition-colors"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
-                          <Building2 size={18} className="text-gray-500" />
+              // Tab Anticipate
+              anticipateByCommittente.length === 0 ? (
+                <div className="p-8 text-center text-gray-400">
+                  <Calendar size={40} className="mx-auto mb-2 opacity-50" />
+                  <p>Nessuna agibilità futura</p>
+                </div>
+              ) : (
+                <div className="divide-y divide-gray-100">
+                  {anticipateByCommittente.map((group) => (
+                    <Link
+                      key={group.committente.id}
+                      href={`/fatturazione/agibilita?committente=${group.committente.id}&anticipate=true`}
+                      className="block p-4 hover:bg-orange-50 transition-colors"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center">
+                            <Calendar size={18} className="text-orange-500" />
+                          </div>
+                          <div>
+                            <p className="font-medium text-gray-900">
+                              {group.committente.ragioneSociale}
+                            </p>
+                            <p className="text-sm text-orange-600">
+                              {group.count} agibilità future
+                            </p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="font-medium text-gray-900">
-                            {group.committente.ragioneSociale}
-                          </p>
-                          <p className="text-sm text-gray-500">
-                            {group.count} agibilità
-                          </p>
+                        <div className="flex items-center gap-3">
+                          <span className="text-lg font-semibold text-orange-600">
+                            €{group.totale.toLocaleString('it-IT')}
+                          </span>
+                          <ChevronRight size={20} className="text-gray-400" />
                         </div>
                       </div>
-                      <div className="flex items-center gap-3">
-                        <span className="text-lg font-semibold text-gray-900">
-                          €{group.totale.toLocaleString('it-IT')}
-                        </span>
-                        <ChevronRight size={20} className="text-gray-400" />
-                      </div>
-                    </div>
-                  </Link>
-                ))}
-              </div>
+                    </Link>
+                  ))}
+                </div>
+              )
             )}
           </div>
           

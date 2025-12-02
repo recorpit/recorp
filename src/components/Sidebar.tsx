@@ -2,6 +2,7 @@
 'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { 
@@ -27,7 +28,9 @@ import {
   HardHat,
   Sparkles,
   UserCog,
-  Loader2
+  Loader2,
+  Menu,
+  X
 } from 'lucide-react'
 import { useState, useEffect, useMemo } from 'react'
 
@@ -37,7 +40,7 @@ interface MenuItem {
   icon: any
   badge?: string
   disabled?: boolean
-  permesso?: string // permesso richiesto per vedere questa voce
+  permesso?: string
 }
 
 interface MenuSection {
@@ -48,10 +51,9 @@ interface MenuSection {
   href?: string
   badge?: string
   disabled?: boolean
-  permesso?: string // permesso richiesto per vedere questa sezione
+  permesso?: string
 }
 
-// Menu completo con permessi associati
 const menuSections: MenuSection[] = [
   {
     id: 'dashboard',
@@ -151,9 +153,15 @@ export default function Sidebar() {
   const pathname = usePathname()
   const { data: session, status } = useSession()
   const [collapsed, setCollapsed] = useState(false)
+  const [mobileOpen, setMobileOpen] = useState(false)
   const [expandedSection, setExpandedSection] = useState<string | null>(null)
   const [permessi, setPermessi] = useState<Set<string>>(new Set())
   const [permessiLoaded, setPermessiLoaded] = useState(false)
+
+  // Chiudi sidebar mobile quando cambia pagina
+  useEffect(() => {
+    setMobileOpen(false)
+  }, [pathname])
 
   // Carica permessi utente
   useEffect(() => {
@@ -176,38 +184,24 @@ export default function Sidebar() {
     }
   }
 
-  // Verifica se l'utente ha un permesso
   const haPermesso = (permesso?: string): boolean => {
-    // Se non c'è permesso specificato, mostra sempre
     if (!permesso) return true
-    // Admin vede tutto
     if (session?.user?.ruolo === 'ADMIN') return true
-    // Controlla permesso
     return permessi.has(permesso)
   }
 
-  // Filtra menu in base ai permessi
   const menuFiltrato = useMemo(() => {
     return menuSections
       .map(section => {
-        // Se la sezione ha items, filtra quelli visibili
         if (section.items) {
           const itemsFiltrati = section.items.filter(item => {
-            // Voci disabilitate (Soon) sempre visibili
             if (item.disabled) return true
-            // Controlla permesso
             return haPermesso(item.permesso)
           })
-          
-          // Se non ci sono items visibili, nascondi la sezione
           if (itemsFiltrati.length === 0) return null
-          
           return { ...section, items: itemsFiltrati }
         }
-        
-        // Sezione singola: controlla permesso
         if (!haPermesso(section.permesso)) return null
-        
         return section
       })
       .filter(Boolean) as MenuSection[]
@@ -231,35 +225,43 @@ export default function Sidebar() {
   // Loading
   if (status === 'loading' || !permessiLoaded) {
     return (
-      <aside className={`bg-gray-900 text-white h-screen fixed left-0 top-0 transition-all duration-300 ease-in-out z-40 ${collapsed ? 'w-16' : 'w-64'}`}>
-        <div className="h-16 flex items-center justify-center border-b border-gray-800">
-          <Loader2 className="animate-spin text-gray-400" size={24} />
-        </div>
-      </aside>
+      <>
+        {/* Mobile header placeholder */}
+        <div className="lg:hidden fixed top-0 left-0 right-0 h-14 bg-gray-900 z-50" />
+        {/* Desktop sidebar placeholder */}
+        <aside className="hidden lg:block bg-gray-900 text-white h-screen fixed left-0 top-0 w-64 z-40">
+          <div className="h-16 flex items-center justify-center border-b border-gray-800">
+            <Loader2 className="animate-spin text-gray-400" size={24} />
+          </div>
+        </aside>
+      </>
     )
   }
 
-  return (
-    <aside className={`
-      bg-gray-900 text-white h-screen fixed left-0 top-0 
-      transition-all duration-300 ease-in-out z-40
-      ${collapsed ? 'w-16' : 'w-64'}
-      overflow-y-auto
-    `}>
+  const sidebarContent = (
+    <>
       {/* Header */}
       <div className="h-16 flex items-center justify-between px-4 border-b border-gray-800 sticky top-0 bg-gray-900 z-10">
         {!collapsed && (
           <div className="flex items-center gap-2">
-            <span className="text-2xl">🎭</span>
-            <span className="font-bold text-xl">RECORP</span>
+            <Image src="/logo.png" alt="RECORP" width={120} height={32} className="brightness-0 invert" />
           </div>
         )}
-        {collapsed && <span className="text-2xl mx-auto">🎭</span>}
+        {collapsed && (
+          <Image src="/logo.png" alt="RECORP" width={32} height={32} className="brightness-0 invert mx-auto" />
+        )}
         <button 
           onClick={() => setCollapsed(!collapsed)}
-          className="p-1 rounded hover:bg-gray-800 transition-colors"
+          className="p-1 rounded hover:bg-gray-800 transition-colors hidden lg:block"
         >
           {collapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
+        </button>
+        {/* Close button for mobile */}
+        <button 
+          onClick={() => setMobileOpen(false)}
+          className="p-1 rounded hover:bg-gray-800 transition-colors lg:hidden"
+        >
+          <X size={20} />
         </button>
       </div>
       
@@ -270,7 +272,6 @@ export default function Sidebar() {
           const isExpanded = expandedSection === section.id
           const hasItems = section.items && section.items.length > 0
           
-          // Voce singola (non espandibile)
           if (!hasItems && section.href) {
             const active = isActive(section.href)
             
@@ -281,12 +282,12 @@ export default function Sidebar() {
                   className={`
                     flex items-center gap-3 px-3 py-3 rounded-lg mb-1
                     text-gray-500 cursor-not-allowed
-                    ${collapsed ? 'justify-center' : ''}
+                    ${collapsed ? 'lg:justify-center' : ''}
                   `}
                   title={collapsed ? section.label : undefined}
                 >
                   <Icon size={20} />
-                  {!collapsed && (
+                  {(!collapsed || mobileOpen) && (
                     <>
                       <span className="flex-1">{section.label}</span>
                       {section.badge && (
@@ -311,17 +312,16 @@ export default function Sidebar() {
                     ? 'bg-blue-600 text-white' 
                     : 'text-gray-300 hover:bg-gray-800 hover:text-white'
                   }
-                  ${collapsed ? 'justify-center' : ''}
+                  ${collapsed && !mobileOpen ? 'lg:justify-center' : ''}
                 `}
                 title={collapsed ? section.label : undefined}
               >
                 <Icon size={20} />
-                {!collapsed && <span>{section.label}</span>}
+                {(!collapsed || mobileOpen) && <span>{section.label}</span>}
               </Link>
             )
           }
           
-          // Sezione espandibile
           return (
             <div key={section.id} className="mb-1">
               <button
@@ -334,12 +334,12 @@ export default function Sidebar() {
                     ? 'text-gray-500 cursor-not-allowed' 
                     : 'text-gray-300 hover:bg-gray-800 hover:text-white'
                   }
-                  ${collapsed ? 'justify-center' : ''}
+                  ${collapsed && !mobileOpen ? 'lg:justify-center' : ''}
                 `}
                 title={collapsed ? section.label : undefined}
               >
                 <Icon size={20} />
-                {!collapsed && (
+                {(!collapsed || mobileOpen) && (
                   <>
                     <span className="flex-1 text-left">{section.label}</span>
                     {section.badge && (
@@ -354,8 +354,7 @@ export default function Sidebar() {
                 )}
               </button>
               
-              {/* Sottomenu */}
-              {!collapsed && isExpanded && section.items && (
+              {(!collapsed || mobileOpen) && isExpanded && section.items && (
                 <div className="ml-4 mt-1 space-y-1">
                   {section.items.map((item) => {
                     const ItemIcon = item.icon
@@ -419,21 +418,66 @@ export default function Sidebar() {
               flex items-center gap-3 px-3 py-2 rounded-lg
               text-gray-400 hover:bg-gray-800 hover:text-white
               transition-colors
-              ${collapsed ? 'justify-center' : ''}
+              ${collapsed && !mobileOpen ? 'lg:justify-center' : ''}
             `}
             title={collapsed ? 'Impostazioni' : undefined}
           >
             <Settings size={20} />
-            {!collapsed && <span>Impostazioni</span>}
+            {(!collapsed || mobileOpen) && <span>Impostazioni</span>}
           </Link>
         )}
         
-        {!collapsed && (
+        {(!collapsed || mobileOpen) && (
           <div className="mt-4 text-xs text-gray-500 text-center">
             RECORP v3.7
           </div>
         )}
       </div>
-    </aside>
+    </>
+  )
+
+  return (
+    <>
+      {/* Mobile Header Bar */}
+      <div className="lg:hidden fixed top-0 left-0 right-0 h-14 bg-gray-900 z-50 flex items-center px-4 border-b border-gray-800">
+        <button 
+          onClick={() => setMobileOpen(true)}
+          className="p-2 rounded hover:bg-gray-800 transition-colors text-white"
+        >
+          <Menu size={24} />
+        </button>
+        <div className="ml-3">
+          <Image src="/logo.png" alt="RECORP" width={100} height={28} className="brightness-0 invert" />
+        </div>
+      </div>
+
+      {/* Mobile Overlay */}
+      {mobileOpen && (
+        <div 
+          className="lg:hidden fixed inset-0 bg-black/50 z-40"
+          onClick={() => setMobileOpen(false)}
+        />
+      )}
+
+      {/* Mobile Sidebar */}
+      <aside className={`
+        lg:hidden fixed left-0 top-0 h-screen bg-gray-900 text-white z-50
+        transition-transform duration-300 ease-in-out w-64
+        ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}
+        overflow-y-auto
+      `}>
+        {sidebarContent}
+      </aside>
+
+      {/* Desktop Sidebar */}
+      <aside className={`
+        hidden lg:block bg-gray-900 text-white h-screen fixed left-0 top-0 
+        transition-all duration-300 ease-in-out z-40
+        ${collapsed ? 'w-16' : 'w-64'}
+        overflow-y-auto
+      `}>
+        {sidebarContent}
+      </aside>
+    </>
   )
 }

@@ -89,7 +89,7 @@ export async function POST(request: NextRequest) {
         isPubblicaAmministrazione: body.isPubblicaAmministrazione || false,
         splitPayment: body.splitPayment || false,
         modalitaFatturazione: body.modalitaFatturazione || 'DETTAGLIO_SPESE_INCLUSE',
-        tipoPagamento: body.tipoPagamento || 'BONIFICO_30GG',
+        tipoPagamento: body.tipoPagamento || 'BONIFICO_VISTA',
         scadenzaPagamentoId: body.scadenzaPagamentoId || null,
         
         // Condizioni economiche

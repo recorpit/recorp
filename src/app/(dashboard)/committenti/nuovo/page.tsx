@@ -45,6 +45,8 @@ export default function NuovoCommittentePage() {
     noteInterne: '',
     // Campi fatturazione
     modalitaFatturazione: 'DETTAGLIO_SPESE_INCLUSE',
+    timingFatturazione: 'SETTIMANALE',
+    tipoPagamento: 'BONIFICO_VISTA',
     scadenzaPagamentoId: '',
     isPubblicaAmministrazione: false,
     splitPayment: false,
@@ -387,6 +389,43 @@ export default function NuovoCommittentePage() {
                       {s.nome} ({s.giorni}gg{s.fineMese ? ' FM' : ''})
                     </option>
                   ))}
+                </select>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Metodo di Pagamento Default
+                </label>
+                <select
+                  name="tipoPagamento"
+                  value={form.tipoPagamento}
+                  onChange={handleChange}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="BONIFICO_VISTA">Bonifico vista fattura</option>
+                  <option value="BONIFICO_30GG">Bonifico 30gg</option>
+                  <option value="BONIFICO_60GG">Bonifico 60gg</option>
+                  <option value="RIBA_30GG">RiBa 30gg</option>
+                  <option value="RIBA_60GG">RiBa 60gg</option>
+                  <option value="CARTA_CREDITO">Carta di credito</option>
+                  <option value="CONTANTI">Contanti</option>
+                  <option value="ASSEGNO">Assegno</option>
+                </select>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Timing Fatturazione
+                </label>
+                <select
+                  name="timingFatturazione"
+                  value={form.timingFatturazione}
+                  onChange={handleChange}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="GIORNALIERA">Giornaliera (1 fattura per agibilità)</option>
+                  <option value="SETTIMANALE">Settimanale (default)</option>
+                  <option value="MENSILE">Mensile (ultimo giorno del mese)</option>
                 </select>
               </div>
               

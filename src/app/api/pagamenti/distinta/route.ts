@@ -73,7 +73,7 @@ export async function POST(request: NextRequest) {
     
     let totaleGenerale = 0
     
-    for (const [cf, gruppo] of perArtista) {
+    for (const [cf, gruppo] of Array.from(perArtista)) {
       const beneficiario = `${gruppo.artista.cognome} ${gruppo.artista.nome}`
       const iban = gruppo.artista.iban || ''
       const importo = gruppo.totale.toFixed(2).replace('.', ',')

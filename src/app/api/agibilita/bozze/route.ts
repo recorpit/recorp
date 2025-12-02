@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { CONFIG } from '@/lib/constants'
+import crypto from 'crypto'
 
 // GET - Lista bozze
 export async function GET(request: NextRequest) {
@@ -24,14 +25,14 @@ export async function GET(request: NextRequest) {
       where,
       orderBy: { updatedAt: 'desc' },
       include: {
-        creatoDa: {
+        User_BozzaAgibilita_creatoDaIdToUser: {
           select: {
             id: true,
             nome: true,
             cognome: true,
           }
         },
-        lockedByUser: {
+        User_BozzaAgibilita_lockedByIdToUser: {
           select: {
             id: true,
             nome: true,
@@ -70,6 +71,7 @@ export async function POST(request: NextRequest) {
     
     const bozza = await prisma.bozzaAgibilita.create({
       data: {
+        id: crypto.randomUUID(),
         codicePrenotato: body.codicePrenotato || null,
         prenotazioneId: body.prenotazioneId || null,
         datiArtisti: body.datiArtisti || null,
@@ -84,9 +86,10 @@ export async function POST(request: NextRequest) {
         lockedAt: new Date(),
         lockScadeAt,
         creatoDaId: body.userId || null,
+        updatedAt: new Date(),
       },
       include: {
-        creatoDa: {
+        User_BozzaAgibilita_creatoDaIdToUser: {
           select: { id: true, nome: true, cognome: true }
         }
       }

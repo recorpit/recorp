@@ -16,10 +16,10 @@ export async function GET() {
       codiceCommercialista: a.codiceCommercialista || '',
       nomeDarte: a.nomeDarte || '',
       dataNascita: a.dataNascita ? a.dataNascita.toLocaleDateString('it-IT') : '',
-      luogoNascita: a.luogoNascita || '',
+      // luogoNascita: a.luogoNascita || '',  // RIMUOVI
       provinciaNascita: a.provinciaNascita || '',
       sesso: a.sesso || '',
-      cittadinanza: a.cittadinanza || '',
+      // cittadinanza: a.cittadinanza || '',  // RIMUOVI
       indirizzo: a.indirizzo || '',
       cap: a.cap || '',
       citta: a.citta || '',

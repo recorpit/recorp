@@ -1,3 +1,4 @@
+// src/app/api/agibilita/pdf/route.ts
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 
@@ -12,8 +13,13 @@ export async function POST(request: NextRequest) {
     const agibilita = await prisma.agibilita.findUnique({
       where: { id: body.agibilitaId },
       include: {
-        evento: { include: { locale: true } },
-        artista: true
+        locale: true,
+        committente: true,
+        artisti: {
+          include: {
+            artista: true
+          }
+        }
       }
     })
     
@@ -24,20 +30,33 @@ export async function POST(request: NextRequest) {
     // Per ora restituiamo i dati JSON
     // TODO: Implementare generazione PDF con @react-pdf/renderer
     const pdfData = {
-      artista: {
-        nome: agibilita.artista.nome,
-        cognome: agibilita.artista.cognome,
-        codiceFiscale: agibilita.artista.codiceFiscale
+      agibilita: {
+        id: agibilita.id,
+        codice: agibilita.codice,
+        data: agibilita.data,
+        stato: agibilita.stato,
       },
-      evento: {
-        nome: agibilita.evento.nome,
-        data: agibilita.evento.data,
-        locale: agibilita.evento.locale.nome
+      locale: {
+        nome: agibilita.locale.nome,
+        citta: agibilita.locale.citta,
+        indirizzo: agibilita.locale.indirizzo,
       },
-      compenso: {
-        lordo: agibilita.compensoLordo,
-        netto: agibilita.compensoNetto,
-        contributi: agibilita.contributiINPS
+      committente: agibilita.committente ? {
+        ragioneSociale: agibilita.committente.ragioneSociale,
+        partitaIva: agibilita.committente.partitaIva,
+      } : null,
+      artisti: agibilita.artisti.map(aa => ({
+        nome: aa.artista.nome,
+        cognome: aa.artista.cognome,
+        codiceFiscale: aa.artista.codiceFiscale,
+        compensoLordo: aa.compensoLordo,
+        compensoNetto: aa.compensoNetto,
+        ritenuta: aa.ritenuta,
+      })),
+      totali: {
+        lordo: agibilita.totaleCompensiLordi,
+        netto: agibilita.totaleCompensiNetti,
+        ritenute: agibilita.totaleRitenute,
       }
     }
     

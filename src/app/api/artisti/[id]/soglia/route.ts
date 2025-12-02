@@ -32,18 +32,20 @@ export async function GET(
       )
     }
     
-    // Calcola somma compensi lordi dell'anno
+    // Calcola somma compensi lordi dell'anno tramite ArtistaAgibilita
     const inizioAnno = new Date(anno, 0, 1)
     const fineAnno = new Date(anno, 11, 31, 23, 59, 59)
     
-    const somma = await prisma.agibilita.aggregate({
+    const somma = await prisma.artistaAgibilita.aggregate({
       where: {
         artistaId: id,
-        data: {
-          gte: inizioAnno,
-          lte: fineAnno
-        },
-        stato: { not: 'ERRORE' }
+        agibilita: {
+          data: {
+            gte: inizioAnno,
+            lte: fineAnno
+          },
+          stato: { not: 'ERRORE' }
+        }
       },
       _sum: {
         compensoLordo: true
@@ -53,32 +55,39 @@ export async function GET(
       }
     })
     
-    const totale = parseFloat(somma._sum.compensoLordo?.toString() || '0')
-    const numeroAgibilita = somma._count.id
+    const totale = parseFloat(somma._sum?.compensoLordo?.toString() || '0')
+    const numeroAgibilita = somma._count?.id || 0
     
     // Calcola alert
     const alert = calcolaAlertSoglia(totale)
     
     // Dettaglio agibilità dell'anno
-    const agibilita = await prisma.agibilita.findMany({
+    const artistaAgibilita = await prisma.artistaAgibilita.findMany({
       where: {
         artistaId: id,
-        data: {
-          gte: inizioAnno,
-          lte: fineAnno
-        },
-        stato: { not: 'ERRORE' }
+        agibilita: {
+          data: {
+            gte: inizioAnno,
+            lte: fineAnno
+          },
+          stato: { not: 'ERRORE' }
+        }
       },
       select: {
         id: true,
-        codice: true,
-        data: true,
         compensoLordo: true,
-        locale: {
-          select: { nome: true }
+        agibilita: {
+          select: {
+            id: true,
+            codice: true,
+            data: true,
+            locale: {
+              select: { nome: true }
+            }
+          }
         }
       },
-      orderBy: { data: 'asc' }
+      orderBy: { agibilita: { data: 'asc' } }
     })
     
     return NextResponse.json({
@@ -94,9 +103,12 @@ export async function GET(
       numeroAgibilita,
       alert,
       residuo: Math.max(0, SOGLIA_PRESTAZIONE_OCCASIONALE - totale),
-      agibilita: agibilita.map(a => ({
-        ...a,
-        compensoLordo: parseFloat(a.compensoLordo.toString()),
+      agibilita: artistaAgibilita.map(aa => ({
+        id: aa.agibilita.id,
+        codice: aa.agibilita.codice,
+        data: aa.agibilita.data,
+        compensoLordo: parseFloat(aa.compensoLordo.toString()),
+        locale: aa.agibilita.locale,
       })),
     })
     

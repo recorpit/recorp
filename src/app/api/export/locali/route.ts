@@ -16,9 +16,9 @@ export async function GET() {
       cap: l.cap || '',
       citta: l.citta || '',
       provincia: l.provincia || '',
-      codiceINPS: l.codiceINPS || '',
-      telefono: l.telefono || '',
-      email: l.email || '',
+      // codiceINPS: l.codiceINPS || '',  // RIMUOVI,
+      // telefono: l.telefono || '',      // RIMUOVI 
+      // email: l.email || '',            // RIMUOVI
       committenteDefaultRagioneSociale: l.committenteDefault?.ragioneSociale || '',
       note: l.note || '',
     }))

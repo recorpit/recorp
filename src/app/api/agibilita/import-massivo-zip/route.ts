@@ -283,7 +283,7 @@ async function processZipFile(file: File, emailSettings: any): Promise<ImportRes
     
     // Copia per committente se diverso
     if (agibilita.committenteId !== agibilita.locale.committenteDefaultId) {
-      const committenteSlug = slugify(agibilita.committente.ragioneSociale)
+      const committenteSlug = slugify(agibilita.committente!.ragioneSociale)
       const committentePath = path.join(uploadsBase, 'committenti', committenteSlug, 'agibilita')
       ensureDir(committentePath)
       fs.writeFileSync(path.join(committentePath, pdfFileName), pdfBuffer)
@@ -383,21 +383,21 @@ async function processZipFile(file: File, emailSettings: any): Promise<ImportRes
       }
       
       // Email committente
-      if (emailSettings.invioEmailCommittente && agibilita.committente.email) {
+      if (emailSettings.invioEmailCommittente && agibilita.committente!.email) {
         try {
           const artistiNomi = agibilita.artisti.map((aa: any) => 
             aa.artista.nomeDarte || `${aa.artista.cognome} ${aa.artista.nome}`
           )
           
           const template = templateEmailAgibilitaLocale({
-            nomeLocale: agibilita.committente.ragioneSociale,
+            nomeLocale: agibilita.committente!.ragioneSociale,
             codiceAgibilita: agibilita.codice,
             dataEvento: dataFormattata,
             artisti: artistiNomi
           })
           
           const sent = await sendEmail({
-            to: agibilita.committente.email,
+            to: agibilita.committente!.email,
             subject: template.subject,
             html: template.html,
             text: template.text,

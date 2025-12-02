@@ -14,7 +14,7 @@ export async function GET(
       where: { id },
       include: {
         artista: true,
-        batch: true,
+        Batch: true,
       }
     })
     

@@ -1,6 +1,7 @@
 // src/app/api/import/artisti/route.ts
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
+import { TipoDocumento } from '@prisma/client'
 import * as XLSX from 'xlsx'
 
 // Funzione per costruire la mappa qualifiche dal database
@@ -12,10 +13,8 @@ async function buildQualificaMap(): Promise<Record<string, string>> {
   const map: Record<string, string> = {}
   
   for (const q of qualifiche) {
-    // Aggiungi il nome stesso
     map[q.nome.toLowerCase()] = q.nome
     
-    // Aggiungi i sinonimi
     if (q.sinonimi) {
       const sinonimi = q.sinonimi.split(',').map(s => s.trim().toLowerCase())
       for (const sin of sinonimi) {
@@ -29,7 +28,6 @@ async function buildQualificaMap(): Promise<Record<string, string>> {
   return map
 }
 
-// Fallback se non ci sono qualifiche nel DB
 const QUALIFICA_FALLBACK: Record<string, string> = {
   'dj': 'DJ',
   'vocalist': 'Vocalist/Cantante',
@@ -56,7 +54,7 @@ const TIPO_CONTRATTO_MAP: Record<string, string> = {
   'fulltime': 'FULL_TIME',
 }
 
-const TIPO_DOCUMENTO_MAP: Record<string, string> = {
+const TIPO_DOCUMENTO_MAP: Record<string, TipoDocumento> = {
   'carta_identita': 'CARTA_IDENTITA',
   'carta identita': 'CARTA_IDENTITA',
   'cartaidentita': 'CARTA_IDENTITA',
@@ -72,7 +70,7 @@ const TIPO_DOCUMENTO_MAP: Record<string, string> = {
   'altro': 'ALTRO',
 }
 
-function mapTipoDocumento(value: string | undefined): string | null {
+function mapTipoDocumento(value: string | undefined): TipoDocumento | null {
   if (!value) return null
   const normalized = value.toLowerCase().trim().replace(/[\s_\-]+/g, ' ')
   return TIPO_DOCUMENTO_MAP[normalized] || TIPO_DOCUMENTO_MAP[value.toLowerCase().trim()] || null
@@ -81,11 +79,10 @@ function mapTipoDocumento(value: string | undefined): string | null {
 function parseDate(value: string): Date | null {
   if (!value) return null
   
-  // Prova vari formati
   const formats = [
-    /^(\d{2})\/(\d{2})\/(\d{4})$/, // DD/MM/YYYY
-    /^(\d{4})-(\d{2})-(\d{2})$/, // YYYY-MM-DD
-    /^(\d{2})-(\d{2})-(\d{4})$/, // DD-MM-YYYY
+    /^(\d{2})\/(\d{2})\/(\d{4})$/,
+    /^(\d{4})-(\d{2})-(\d{2})$/,
+    /^(\d{2})-(\d{2})-(\d{4})$/,
   ]
   
   for (const format of formats) {
@@ -107,7 +104,6 @@ function parseDate(value: string): Date | null {
 function normalizeRow(row: Record<string, string>) {
   const normalized: Record<string, string> = {}
   for (const [key, value] of Object.entries(row)) {
-    // Rimuove spazi, underscore, trattini e converte in minuscolo
     const normalizedKey = key.toLowerCase().trim().replace(/[\s_\-]+/g, '')
     normalized[normalizedKey] = String(value || '').trim()
   }
@@ -124,15 +120,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Nessun file caricato' }, { status: 400 })
     }
     
-    // Carica mappa qualifiche dal database
     let QUALIFICA_MAP = await buildQualificaMap()
     
-    // Se il DB è vuoto, usa fallback
     if (Object.keys(QUALIFICA_MAP).length === 0) {
       QUALIFICA_MAP = QUALIFICA_FALLBACK
     }
     
-    // Leggi file
     const buffer = await file.arrayBuffer()
     const workbook = XLSX.read(buffer, { type: 'array' })
     const sheet = workbook.Sheets[workbook.SheetNames[0]]
@@ -157,17 +150,14 @@ export async function POST(request: NextRequest) {
           continue
         }
         
-        // Verifica se esiste
         const existing = await prisma.artista.findUnique({
           where: { codiceFiscale: cf }
         })
         
         if (existing && mode === 'create') {
-          // Skip duplicato
           continue
         }
         
-        // Prepara dati
         const dataNascita = parseDate(row.datanascita)
         const scadenzaDocumento = parseDate(row.scadenzadocumento)
         
@@ -179,10 +169,8 @@ export async function POST(request: NextRequest) {
           ? TIPO_CONTRATTO_MAP[row.tipocontratto.toLowerCase()] || 'PRESTAZIONE_OCCASIONALE'
           : 'PRESTAZIONE_OCCASIONALE'
         
-        // Codice commercialista: usa quello dell'Excel se presente, altrimenti genera
         let codiceCommercialista = row.codicecommercialista?.trim() || existing?.codiceCommercialista || null
         
-        // Se non c'è e stiamo creando, genera automaticamente
         if (!codiceCommercialista && (!existing || mode === 'create')) {
           const ultimoArtista = await prisma.artista.findFirst({
             where: { codiceCommercialista: { startsWith: '1000' } },
@@ -194,7 +182,6 @@ export async function POST(request: NextRequest) {
             const numeroStr = codice.substring(4).replace(/0+$/, '')
             prossimoNumero = (parseInt(numeroStr) || 0) + 1
           }
-          // Per evitare conflitti in import batch, aggiungo l'indice della riga
           const numero = prossimoNumero + i
           codiceCommercialista = `1000${numero}${'0'.repeat(7 - numero.toString().length)}`
         }

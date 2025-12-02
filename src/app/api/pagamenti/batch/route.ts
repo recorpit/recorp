@@ -45,7 +45,6 @@ export async function GET(request: NextRequest) {
             gte: dataInizio,
             lte: dataFine,
           },
-          // Escludi quelle già con prestazione (check via artisti)
         },
         include: {
           artisti: {
@@ -60,8 +59,7 @@ export async function GET(request: NextRequest) {
       
       // Filtra: solo normali O a rischio GIÀ incassate
       const agibilitaValide = agibilitaPronte.filter(ag => {
-        if (!ag.committente.aRischio) return true
-        // Se a rischio, controlla se fattura pagata
+        if (!ag.committente?.aRischio) return true
         return ag.statoFattura === 'PAGATA'
       })
       
@@ -85,7 +83,7 @@ export async function GET(request: NextRequest) {
       const artistiPronti: any[] = []
       const artistiIncompleti: any[] = []
       
-      for (const [artistaId, eventi] of artistiMap) {
+      for (const [artistaId, eventi] of Array.from(artistiMap)) {
         const artista = eventi[0].compenso.artista
         const datiMancanti: string[] = []
         
@@ -97,8 +95,8 @@ export async function GET(request: NextRequest) {
         if (!artista.iban) datiMancanti.push('IBAN')
         if (!artista.email) datiMancanti.push('Email')
         
-        const totaleNetto = eventi.reduce((sum, e) => sum + parseFloat(e.compenso.compensoNetto), 0)
-        const totaleLordo = eventi.reduce((sum, e) => sum + parseFloat(e.compenso.compensoLordo), 0)
+        const totaleNetto = eventi.reduce((sum: number, e: any) => sum + parseFloat(e.compenso.compensoNetto), 0)
+        const totaleLordo = eventi.reduce((sum: number, e: any) => sum + parseFloat(e.compenso.compensoLordo), 0)
         
         const artistaInfo = {
           artista,
@@ -106,7 +104,7 @@ export async function GET(request: NextRequest) {
           totaleNetto,
           totaleLordo,
           datiMancanti,
-          eventiDettaglio: eventi.map(e => ({
+          eventiDettaglio: eventi.map((e: any) => ({
             locale: e.agibilita.locale.nome,
             data: e.agibilita.data,
             compensoNetto: e.compenso.compensoNetto,
@@ -140,7 +138,7 @@ export async function GET(request: NextRequest) {
       take: 20,
       include: {
         _count: {
-          select: { prestazioni: true }
+          select: { PrestazioneOccasionale: true }
         }
       }
     })
@@ -160,7 +158,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { artistiIds, forza } = body // forza = true per generazione forzata
+    const { artistiIds, forza } = body
     
     const oggi = new Date()
     const anno = oggi.getFullYear()
@@ -173,10 +171,9 @@ export async function POST(request: NextRequest) {
     let periodo: number
     
     if (forza) {
-      // FORZA: prendi tutte le agibilità completate degli ultimi 60 giorni
       dataInizio = new Date(oggi.getFullYear(), oggi.getMonth() - 2, 1)
       dataFine = oggi
-      periodo = 0 // Speciale per forzato
+      periodo = 0
     } else if (giorno >= 1 && giorno <= 15) {
       const mesePrecedente = new Date(oggi.getFullYear(), oggi.getMonth() - 1, 16)
       const fineMesePrecedente = new Date(oggi.getFullYear(), oggi.getMonth(), 0)
@@ -211,7 +208,7 @@ export async function POST(request: NextRequest) {
     
     // Filtra: solo normali O a rischio GIÀ incassate
     const agibilitaValide = agibilitaPronte.filter(ag => {
-      if (!ag.committente.aRischio) return true
+      if (!ag.committente?.aRischio) return true
       return ag.statoFattura === 'PAGATA'
     })
     
@@ -222,19 +219,16 @@ export async function POST(request: NextRequest) {
       for (const aa of ag.artisti) {
         const artistaId = aa.artistaId
         
-        // Se artistiIds specificati, filtra
         if (artistiIds && artistiIds.length > 0 && !artistiIds.includes(artistaId)) {
           continue
         }
         
         const artista = aa.artista
         
-        // IMPORTANTE: Solo artisti in PRESTAZIONE_OCCASIONALE
         if (artista.tipoContratto !== 'PRESTAZIONE_OCCASIONALE') {
           continue
         }
         
-        // Verifica dati completi
         if (!artista.codiceFiscale || !artista.indirizzo || !artista.cap || 
             !artista.citta || !artista.provincia || !artista.iban || !artista.email) {
           continue
@@ -266,6 +260,7 @@ export async function POST(request: NextRequest) {
     
     const batch = await prisma.batchPagamento.create({
       data: {
+        id: crypto.randomUUID(),
         codice: codiceBatch,
         anno,
         mese,
@@ -274,21 +269,20 @@ export async function POST(request: NextRequest) {
         dataFine,
         dataGenerazione: oggi,
         stato: 'GENERATO',
+        updatedAt: oggi,
       }
     })
     
     // Genera prestazioni per ogni artista
     const prestazioniGenerate: any[] = []
     
-    for (const [artistaId, eventi] of artistiMap) {
+    for (const [artistaId, eventi] of Array.from(artistiMap)) {
       const artista = eventi[0].compenso.artista
       
-      // Calcola totali
-      const totaleNettoOriginale = eventi.reduce((sum, e) => sum + parseFloat(e.compenso.compensoNetto), 0)
-      const totaleLordoOriginale = eventi.reduce((sum, e) => sum + parseFloat(e.compenso.compensoLordo), 0)
-      const totaleRitenutaOriginale = eventi.reduce((sum, e) => sum + parseFloat(e.compenso.ritenuta), 0)
+      const totaleNettoOriginale = eventi.reduce((sum: number, e: any) => sum + parseFloat(e.compenso.compensoNetto), 0)
+      const totaleLordoOriginale = eventi.reduce((sum: number, e: any) => sum + parseFloat(e.compenso.compensoLordo), 0)
+      const totaleRitenutaOriginale = eventi.reduce((sum: number, e: any) => sum + parseFloat(e.compenso.ritenuta), 0)
       
-      // Ottieni progressivo per artista
       let progressivo = await prisma.progressivoRicevuta.findUnique({
         where: {
           artistaId_anno: { artistaId, anno }
@@ -308,22 +302,18 @@ export async function POST(request: NextRequest) {
         data: { ultimoNumero: nuovoNumero }
       })
       
-      // Codice prestazione
       const cfCorto = artista.codiceFiscale?.substring(0, 6) || artistaId.substring(0, 6)
       const codicePrestazione = `PO-${anno}-${cfCorto}-${nuovoNumero.toString().padStart(3, '0')}`
       
-      // Token firma
       const tokenFirma = crypto.randomBytes(32).toString('hex')
-      const tokenScadenza = new Date(oggi.getTime() + 7 * 24 * 60 * 60 * 1000) // 7 giorni
+      const tokenScadenza = new Date(oggi.getTime() + 7 * 24 * 60 * 60 * 1000)
       
-      // Causale bonifico
-      const causaleParti = eventi.map(e => 
+      const causaleParti = eventi.map((e: any) => 
         `${e.agibilita.locale.nome} ${new Date(e.agibilita.data).toLocaleDateString('it-IT')}`
       )
       const causaleBonifico = `Prestazione ${causaleParti.join(', ')}`
       
-      // Agibilità incluse (JSON)
-      const agibilitaIncluse = eventi.map(e => ({
+      const agibilitaIncluse = eventi.map((e: any) => ({
         id: e.agibilita.id,
         codice: e.agibilita.codice,
         locale: e.agibilita.locale.nome,
@@ -350,7 +340,7 @@ export async function POST(request: NextRequest) {
           totalePagato: totaleNettoOriginale,
           stato: 'GENERATA',
           dataEmissione: oggi,
-          dataInvioLink: oggi, // TODO: inviare email
+          dataInvioLink: oggi,
           tokenFirma,
           tokenScadenza,
           dataScadenzaLink: tokenScadenza,
@@ -377,7 +367,6 @@ export async function POST(request: NextRequest) {
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'
     const emailResults: { artista: string; email: string; success: boolean; error?: string }[] = []
     
-    // Dati committente da env
     const committente = {
       nome: process.env.AZIENDA_NOME || 'OKL SRL',
       piva: process.env.AZIENDA_PIVA || '04433920248',
@@ -405,7 +394,7 @@ export async function POST(request: NextRequest) {
         year: 'numeric'
       })
       
-      const agibilitaIncluse = prestazione.agibilitaIncluse as any[] || []
+      const agibilitaIncluseEmail = prestazione.agibilitaIncluse as any[] || []
       
       const emailData = templateEmailFirma({
         nomeArtista: artista.nome || '',
@@ -414,14 +403,13 @@ export async function POST(request: NextRequest) {
         importoNetto: parseFloat(prestazione.compensoNetto as any).toFixed(2),
         linkFirma,
         scadenzaLink,
-        prestazioni: agibilitaIncluse.map((ag: any) => ({
+        prestazioni: agibilitaIncluseEmail.map((ag: any) => ({
           locale: ag.locale || 'N/D',
           data: ag.data ? new Date(ag.data).toLocaleDateString('it-IT') : 'N/D'
         })),
       })
       
       try {
-        // Genera PDF ricevuta
         const pdfBuffer = await generaPdfRicevuta({
           numero: prestazione.numero,
           anno: prestazione.anno,
@@ -437,7 +425,7 @@ export async function POST(request: NextRequest) {
             provincia: artista.provincia || '',
           },
           committente,
-          prestazioni: agibilitaIncluse.map((ag: any) => ({
+          prestazioni: agibilitaIncluseEmail.map((ag: any) => ({
             locale: ag.locale || 'N/D',
             data: new Date(ag.data),
             descrizione: 'Prestazione artistica'
@@ -449,14 +437,11 @@ export async function POST(request: NextRequest) {
           totalePagato: parseFloat(prestazione.totalePagato as any),
         })
         
-        // Salva PDF su disco
-        // Struttura: /ricevute/COGNOME_NOME_CF/YYYY-MM/Ricevuta_XXX.pdf
         const cfClean = (artista.codiceFiscale || 'NOCODE').toUpperCase()
         const nomeClean = `${artista.cognome}_${artista.nome}`.toUpperCase().replace(/[^A-Z0-9_]/g, '')
         const cartellaArtista = `${nomeClean}_${cfClean}`
         
-        // Mese di riferimento dalla prima agibilità
-        const primaAgibilita = agibilitaIncluse[0]
+        const primaAgibilita = agibilitaIncluseEmail[0]
         const dataRif = primaAgibilita?.data ? new Date(primaAgibilita.data) : new Date()
         const meseRif = `${dataRif.getFullYear()}-${String(dataRif.getMonth() + 1).padStart(2, '0')}`
         
@@ -465,13 +450,9 @@ export async function POST(request: NextRequest) {
         const fileName = `Ricevuta_${prestazione.codice}.pdf`
         const filePath = path.join(targetDir, fileName)
         
-        // Crea cartella se non esiste
         await fs.mkdir(targetDir, { recursive: true })
-        
-        // Salva PDF
         await fs.writeFile(filePath, pdfBuffer)
         
-        // Path relativo per database
         const pdfPathRelativo = path.join(cartellaArtista, meseRif, fileName)
         
         const success = await sendEmail({
@@ -486,7 +467,6 @@ export async function POST(request: NextRequest) {
           }]
         })
         
-        // Aggiorna database con path PDF
         await prisma.prestazioneOccasionale.update({
           where: { id: prestazione.id },
           data: { 

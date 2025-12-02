@@ -140,7 +140,7 @@ export async function GET(request: NextRequest) {
     // Arricchisci con nomi committenti
     const committentiIds = topCommittenti.map(c => c.committenteId)
     const committenti = await prisma.committente.findMany({
-      where: { id: { in: committentiIds } },
+      where: { id: { in: committentiIds.filter((id): id is string => id !== null) } },
       select: { id: true, ragioneSociale: true }
     })
     

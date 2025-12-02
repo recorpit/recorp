@@ -14,10 +14,10 @@ export async function GET(
     const bozza = await prisma.bozzaAgibilita.findUnique({
       where: { id },
       include: {
-        creatoDa: {
+        User_BozzaAgibilita_creatoDaIdToUser: {
           select: { id: true, nome: true, cognome: true }
         },
-        lockedByUser: {
+        User_BozzaAgibilita_lockedByIdToUser: {
           select: { id: true, nome: true, cognome: true }
         }
       }
@@ -114,7 +114,7 @@ export async function PUT(
         lockScadeAt,
       },
       include: {
-        creatoDa: {
+        User_BozzaAgibilita_creatoDaIdToUser: {
           select: { id: true, nome: true, cognome: true }
         }
       }

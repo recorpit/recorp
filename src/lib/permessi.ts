@@ -87,7 +87,7 @@ export async function haAlmenoUnPermesso(
 export function invalidaCachePermessi(userId?: string) {
   if (userId) {
     // Invalida solo per questo utente
-    for (const key of permessiCache.keys()) {
+    for (const key of Array.from(permessiCache.keys())) {
       if (key.startsWith(userId)) {
         permessiCache.delete(key)
         cacheTimestamps.delete(key)

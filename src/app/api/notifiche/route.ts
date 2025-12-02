@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
       orderBy: { createdAt: 'desc' },
       take: limit,
       include: {
-        destinatario: {
+        User: {
           select: {
             id: true,
             nome: true,
@@ -96,7 +96,6 @@ export async function PUT(request: NextRequest) {
     const { notificaIds, leggiTutte, userId } = body
     
     if (leggiTutte && userId) {
-      // Segna tutte come lette per utente
       await prisma.notifica.updateMany({
         where: {
           destinatarioId: userId,

@@ -8,12 +8,10 @@ export async function GET(request: NextRequest) {
     const da = searchParams.get('da')
     const a = searchParams.get('a')
     
-    // Date filter
     const dataInizio = da ? new Date(da) : new Date(new Date().getFullYear(), 0, 1)
     const dataFine = a ? new Date(a) : new Date()
     dataFine.setHours(23, 59, 59, 999)
     
-    // Anno precedente per confronto
     const annoCorrente = dataInizio.getFullYear()
     const dataInizioPrecedente = new Date(dataInizio)
     dataInizioPrecedente.setFullYear(annoCorrente - 1)
@@ -22,7 +20,6 @@ export async function GET(request: NextRequest) {
     
     // ============ KPI ECONOMICI ============
     
-    // Totale quota agenzia (fatturato)
     const fatturatoResult = await prisma.agibilita.aggregate({
       where: {
         data: { gte: dataInizio, lte: dataFine },
@@ -32,7 +29,6 @@ export async function GET(request: NextRequest) {
     })
     const fatturato = Number(fatturatoResult._sum.quotaAgenzia || 0)
     
-    // Fatturato anno precedente
     const fatturatoPrecResult = await prisma.agibilita.aggregate({
       where: {
         data: { gte: dataInizioPrecedente, lte: dataFinePrecedente },
@@ -42,7 +38,6 @@ export async function GET(request: NextRequest) {
     })
     const fatturatoPrecedente = Number(fatturatoPrecResult._sum.quotaAgenzia || 0)
     
-    // Totale cachet artisti (da ArtistaAgibilita)
     const cachetResult = await prisma.artistaAgibilita.aggregate({
       where: {
         agibilita: {
@@ -53,33 +48,32 @@ export async function GET(request: NextRequest) {
     })
     const totaleCachet = Number(cachetResult._sum.compensoNetto || 0)
     
-    // Pagamenti effettuati
+    // Fix: 'PAGATO' non 'PAGATA'
     const pagamentiEffettuati = await prisma.artistaAgibilita.aggregate({
       where: {
         agibilita: {
           data: { gte: dataInizio, lte: dataFine }
         },
-        statoPagamento: 'PAGATA'
+        statoPagamento: 'PAGATO'
       },
       _sum: { compensoNetto: true }
     })
-    const totalePagato = Number(pagamentiEffettuati._sum.compensoNetto || 0)
+    const totalePagato = Number(pagamentiEffettuati._sum?.compensoNetto || 0)
     
-    // Pagamenti in sospeso
+    // Fix: 'IN_ATTESA_INCASSO' non 'IN_ATTESA'
     const pagamentiSospeso = await prisma.artistaAgibilita.aggregate({
       where: {
         agibilita: {
           data: { gte: dataInizio, lte: dataFine }
         },
-        statoPagamento: { in: ['DA_PAGARE', 'IN_ATTESA'] }
+        statoPagamento: { in: ['DA_PAGARE', 'IN_ATTESA_INCASSO'] }
       },
       _sum: { compensoNetto: true }
     })
-    const totaleSospeso = Number(pagamentiSospeso._sum.compensoNetto || 0)
+    const totaleSospeso = Number(pagamentiSospeso._sum?.compensoNetto || 0)
     
     // ============ KPI OPERATIVI ============
     
-    // Agibilità per stato
     const agibilitaPerStato = await prisma.agibilita.groupBy({
       by: ['stato'],
       where: {
@@ -97,7 +91,6 @@ export async function GET(request: NextRequest) {
       errore: agibilitaPerStato.find(s => s.stato === 'ERRORE')?._count || 0,
     }
     
-    // Prestazioni totali (ArtistaAgibilita = singole prestazioni artista)
     const prestazioniTotali = await prisma.artistaAgibilita.count({
       where: {
         agibilita: {
@@ -106,7 +99,6 @@ export async function GET(request: NextRequest) {
       }
     })
     
-    // Artisti attivi (con almeno 1 prestazione nel periodo)
     const artistiAttivi = await prisma.artistaAgibilita.findMany({
       where: {
         agibilita: {
@@ -117,20 +109,15 @@ export async function GET(request: NextRequest) {
       distinct: ['artistaId']
     })
     
-    // Totale artisti iscritti
     const totaleArtisti = await prisma.artista.count({
       where: { iscritto: true }
     })
     
-    // Totale committenti
     const totaleCommittenti = await prisma.committente.count()
-    
-    // Totale locali
     const totaleLocali = await prisma.locale.count()
     
     // ============ CLASSIFICHE ============
     
-    // Top 10 artisti per numero prestazioni
     const topArtistiPrestazioni = await prisma.artistaAgibilita.groupBy({
       by: ['artistaId'],
       where: {
@@ -144,7 +131,6 @@ export async function GET(request: NextRequest) {
       take: 10
     })
     
-    // Recupera nomi artisti
     const artistiIds = topArtistiPrestazioni.map(a => a.artistaId)
     const artisti = await prisma.artista.findMany({
       where: { id: { in: artistiIds } },
@@ -161,12 +147,12 @@ export async function GET(request: NextRequest) {
       }
     })
     
-    // Top 10 committenti per fatturato
     const topCommittentiFatturato = await prisma.agibilita.groupBy({
       by: ['committenteId'],
       where: {
         data: { gte: dataInizio, lte: dataFine },
-        stato: { in: ['PRONTA', 'INVIATA_INPS', 'COMPLETATA'] }
+        stato: { in: ['PRONTA', 'INVIATA_INPS', 'COMPLETATA'] },
+        committenteId: { not: null }
       },
       _count: true,
       _sum: { quotaAgenzia: true },
@@ -174,7 +160,11 @@ export async function GET(request: NextRequest) {
       take: 10
     })
     
-    const committentiIds = topCommittentiFatturato.map(c => c.committenteId)
+    // Fix: filtra null prima di passare a prisma
+    const committentiIds = topCommittentiFatturato
+      .map(c => c.committenteId)
+      .filter((id): id is string => id !== null)
+    
     const committenti = await prisma.committente.findMany({
       where: { id: { in: committentiIds } },
       select: { id: true, ragioneSociale: true }
@@ -190,7 +180,6 @@ export async function GET(request: NextRequest) {
       }
     })
     
-    // Top 10 locali per numero eventi
     const topLocaliEventi = await prisma.agibilita.groupBy({
       by: ['localeId'],
       where: {
@@ -217,7 +206,6 @@ export async function GET(request: NextRequest) {
       }
     })
     
-    // Distribuzione per qualifica
     const distribuzioneQualifica = await prisma.artistaAgibilita.groupBy({
       by: ['artistaId'],
       where: {
@@ -242,37 +230,44 @@ export async function GET(request: NextRequest) {
     
     // ============ ALERT ============
     
-    // Committenti a rischio con saldo aperto
-    const committentiRischio = await prisma.committente.findMany({
+    // Fix: query separata per committenti a rischio
+    const committentiRischioBase = await prisma.committente.findMany({
       where: { aRischio: true },
-      include: {
-        agibilita: {
-          where: {
-            stato: { in: ['PRONTA', 'INVIATA_INPS', 'COMPLETATA'] }
-          },
-          include: {
-            artisti: {
-              where: {
-                statoPagamento: { in: ['DA_PAGARE', 'IN_ATTESA'] }
-              }
+      select: { id: true, ragioneSociale: true }
+    })
+    
+    const alertCommittenti: { id: string; nome: string; saldoAperto: number; eventiAperti: number }[] = []
+    
+    for (const c of committentiRischioBase) {
+      const agibilitaAperte = await prisma.agibilita.findMany({
+        where: {
+          committenteId: c.id,
+          stato: { in: ['PRONTA', 'INVIATA_INPS', 'COMPLETATA'] }
+        },
+        include: {
+          artisti: {
+            where: {
+              statoPagamento: { in: ['DA_PAGARE', 'IN_ATTESA_INCASSO'] }
             }
           }
         }
+      })
+      
+      const saldoAperto = agibilitaAperte.reduce((acc: number, a: any) => 
+        acc + a.artisti.reduce((acc2: number, p: any) => acc2 + Number(p.compensoNetto || 0), 0), 0
+      )
+      const eventiAperti = agibilitaAperte.filter(a => a.artisti.length > 0).length
+      
+      if (saldoAperto > 0) {
+        alertCommittenti.push({
+          id: c.id,
+          nome: c.ragioneSociale,
+          saldoAperto,
+          eventiAperti
+        })
       }
-    })
+    }
     
-    const alertCommittenti = committentiRischio
-      .map(c => ({
-        id: c.id,
-        nome: c.ragioneSociale,
-        saldoAperto: c.agibilita.reduce((acc, a) => 
-          acc + a.artisti.reduce((acc2, p) => acc2 + Number(p.compensoNetto || 0), 0), 0
-        ),
-        eventiAperti: c.agibilita.filter(a => a.artisti.length > 0).length
-      }))
-      .filter(c => c.saldoAperto > 0)
-    
-    // Documenti in scadenza (prossimi 30 giorni)
     const oggi = new Date()
     const fra30giorni = new Date()
     fra30giorni.setDate(fra30giorni.getDate() + 30)
@@ -294,7 +289,6 @@ export async function GET(request: NextRequest) {
       orderBy: { scadenzaDocumento: 'asc' }
     })
     
-    // Agibilità da inviare (PRONTA ma non ancora INVIATA_INPS)
     const agibilitaDaInviare = await prisma.agibilita.count({
       where: {
         stato: 'PRONTA',
@@ -302,7 +296,6 @@ export async function GET(request: NextRequest) {
       }
     })
     
-    // Prestazioni da pagare
     const prestazioniDaPagare = await prisma.artistaAgibilita.count({
       where: {
         statoPagamento: 'DA_PAGARE'

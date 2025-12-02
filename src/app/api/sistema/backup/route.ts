@@ -4,7 +4,6 @@ import { prisma } from '@/lib/db'
 
 export async function POST() {
   try {
-    // Esporta tutti i dati in formato JSON
     const [
       artisti,
       committenti,
@@ -18,7 +17,7 @@ export async function POST() {
       prisma.locale.findMany(),
       prisma.agibilita.findMany({
         include: {
-          partecipazioni: true
+          artisti: true
         }
       }),
       prisma.prestazioneOccasionale.findMany(),
@@ -48,7 +47,6 @@ export async function POST() {
     const jsonString = JSON.stringify(backup, null, 2)
     const buffer = Buffer.from(jsonString, 'utf-8')
     
-    // Log backup
     await prisma.impostazioni.upsert({
       where: { chiave: 'lastBackup' },
       update: { valore: new Date().toISOString(), updatedAt: new Date() },

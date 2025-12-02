@@ -1,23 +1,24 @@
-import { Artista, Locale, Evento, Agibilita } from '@prisma/client'
+import { Artista, Locale, Agibilita } from '@prisma/client'
 
-export type { Artista, Locale, Evento, Agibilita }
+export type { Artista, Locale, Agibilita }
 
 export type ArtistaConRelazioni = Artista & {
-  eventi?: Evento[]
   agibilita?: Agibilita[]
 }
 
 export type LocaleConRelazioni = Locale & {
-  eventi?: Evento[]
-}
-
-export type EventoConRelazioni = Evento & {
-  locale: Locale
-  artista: Artista | null
   agibilita?: Agibilita[]
 }
 
 export type AgibilitaConRelazioni = Agibilita & {
-  evento: Evento & { locale: Locale }
-  artista: Artista
+  locale: Locale
+  artisti: Array<{
+    artista: Artista
+    compensoLordo: number
+    compensoNetto: number
+  }>
+  committente?: {
+    ragioneSociale: string
+    aRischio: boolean
+  } | null
 }

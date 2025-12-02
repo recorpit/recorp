@@ -8,13 +8,20 @@ import Link from 'next/link'
 import { 
   ArrowLeft, FileText, Check, Calendar, MapPin,
   Users, Building2, Search, ChevronDown, ChevronUp,
-  Plus
+  Plus, Clock, CalendarClock
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { it } from 'date-fns/locale'
 
 // Funzione per formattare importi
 const formatImporto = (n: number) => n.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+
+// Mapping timing fatturazione
+const TIMING_LABELS: Record<string, string> = {
+  'GIORNALIERA': 'Giornaliera',
+  'SETTIMANALE': 'Settimanale',
+  'MENSILE': 'Mensile'
+}
 
 interface Artista {
   nome: string
@@ -35,7 +42,7 @@ interface Agibilita {
 }
 
 interface CommittenteGroup {
-  committente: { id: string; ragioneSociale: string; quotaAgenzia: number }
+  committente: { id: string; ragioneSociale: string; quotaAgenzia: number; timingFatturazione?: string }
   agibilita: Agibilita[]
   totale: number
   count: number
@@ -51,6 +58,9 @@ export default function FatturazioneAgibilitaPage() {
   const [groups, setGroups] = useState<CommittenteGroup[]>([])
   const [totali, setTotali] = useState({ totale: 0, count: 0, committentiCount: 0 })
   
+  // Tab attiva: 'standard' o 'anticipate'
+  const [activeTab, setActiveTab] = useState<'standard' | 'anticipate'>('standard')
+  
   // Stato selezione
   const [selectedAgibilita, setSelectedAgibilita] = useState<Set<string>>(new Set())
   const [expandedCommittenti, setExpandedCommittenti] = useState<Set<string>>(new Set())
@@ -61,7 +71,7 @@ export default function FatturazioneAgibilitaPage() {
   
   useEffect(() => {
     loadData()
-  }, [])
+  }, [activeTab])
   
   // Espandi automaticamente se c'è un committente selezionato
   useEffect(() => {
@@ -72,8 +82,12 @@ export default function FatturazioneAgibilitaPage() {
   }, [committenteIdParam])
   
   async function loadData() {
+    setLoading(true)
     try {
-      const res = await fetch('/api/fatturazione/da-fatturare')
+      const url = activeTab === 'anticipate' 
+        ? '/api/fatturazione/da-fatturare?anticipate=true'
+        : '/api/fatturazione/da-fatturare'
+      const res = await fetch(url)
       if (res.ok) {
         const data = await res.json()
         setGroups(data.byCommittente || [])
@@ -237,6 +251,39 @@ export default function FatturazioneAgibilitaPage() {
           </div>
         </div>
         
+        {/* Tab Da Fatturare / Anticipate */}
+        <div className="flex gap-2 mb-4">
+          <button
+            onClick={() => setActiveTab('standard')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
+              activeTab === 'standard'
+                ? 'bg-blue-600 text-white'
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            }`}
+          >
+            <Clock size={18} />
+            Da Fatturare
+          </button>
+          <button
+            onClick={() => setActiveTab('anticipate')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
+              activeTab === 'anticipate'
+                ? 'bg-purple-600 text-white'
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            }`}
+          >
+            <CalendarClock size={18} />
+            Anticipate (Future)
+          </button>
+        </div>
+        
+        {activeTab === 'anticipate' && (
+          <div className="mb-4 p-3 bg-purple-50 border border-purple-200 rounded-lg text-purple-700 text-sm">
+            <strong>Fatturazione anticipata:</strong> Qui vedi tutte le agibilità, incluse quelle con data futura. 
+            Utile per fatturare in anticipo rispetto al timing configurato per committente.
+          </div>
+        )}
+        
         {/* Barra ricerca */}
         <div className="mb-4">
           <div className="relative">
@@ -286,7 +333,18 @@ export default function FatturazioneAgibilitaPage() {
                           <Building2 size={20} className={isActive ? 'text-blue-600' : 'text-gray-500'} />
                         </div>
                         <div>
-                          <h3 className="font-semibold text-gray-900">{group.committente.ragioneSociale}</h3>
+                          <div className="flex items-center gap-2">
+                            <h3 className="font-semibold text-gray-900">{group.committente.ragioneSociale}</h3>
+                            {group.committente.timingFatturazione && (
+                              <span className={`px-2 py-0.5 text-xs rounded-full ${
+                                group.committente.timingFatturazione === 'GIORNALIERA' ? 'bg-green-100 text-green-700' :
+                                group.committente.timingFatturazione === 'MENSILE' ? 'bg-orange-100 text-orange-700' :
+                                'bg-blue-100 text-blue-700'
+                              }`}>
+                                {TIMING_LABELS[group.committente.timingFatturazione] || 'Settimanale'}
+                              </span>
+                            )}
+                          </div>
                           <p className="text-sm text-gray-500">
                             {group.count} agibilità • Quota €{formatImporto(group.committente.quotaAgenzia)}/artista
                           </p>

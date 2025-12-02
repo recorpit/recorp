@@ -64,6 +64,8 @@ export default function DettaglioCommittentePage() {
     noteInterne: '',
     // Nuovi campi fatturazione
     modalitaFatturazione: 'DETTAGLIO_SPESE_INCLUSE',
+    timingFatturazione: 'SETTIMANALE',
+    tipoPagamento: 'BONIFICO_VISTA',
     scadenzaPagamentoId: '',
     isPubblicaAmministrazione: false,
     splitPayment: false,
@@ -98,6 +100,8 @@ export default function DettaglioCommittentePage() {
           noteInterne: data.noteInterne || '',
           modalitaFatturazione: data.modalitaFatturazione || 'DETTAGLIO_SPESE_INCLUSE',
           scadenzaPagamentoId: data.scadenzaPagamentoId || '',
+          timingFatturazione: data.timingFatturazione || 'SETTIMANALE',
+          tipoPagamento: data.tipoPagamento || 'BONIFICO_VISTA',
           isPubblicaAmministrazione: data.isPubblicaAmministrazione || false,
           splitPayment: data.splitPayment || false,
         })
@@ -529,6 +533,65 @@ export default function DettaglioCommittentePage() {
               <p className="mt-2 text-xs text-gray-400">
                 ℹ️ La "Voce unica generica" è sempre disponibile in fase di creazione fattura
               </p>
+              
+              {/* Timing Fatturazione */}
+              <div className="mt-6">
+                <label className="block text-sm font-medium text-gray-700 mb-3">
+                  Timing Fatturazione
+                </label>
+                <div className="space-y-3">
+                  <label className="flex items-start gap-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+                    <input
+                      type="radio"
+                      name="timingFatturazione"
+                      value="GIORNALIERA"
+                      checked={form.timingFatturazione === 'GIORNALIERA'}
+                      onChange={handleChange}
+                      className="mt-1"
+                    />
+                    <div>
+                      <span className="font-medium text-gray-900">Giornaliera</span>
+                      <p className="text-sm text-gray-500">
+                        1 fattura per ogni agibilità
+                      </p>
+                    </div>
+                  </label>
+                  
+                  <label className="flex items-start gap-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+                    <input
+                      type="radio"
+                      name="timingFatturazione"
+                      value="SETTIMANALE"
+                      checked={form.timingFatturazione === 'SETTIMANALE'}
+                      onChange={handleChange}
+                      className="mt-1"
+                    />
+                    <div>
+                      <span className="font-medium text-gray-900">Settimanale</span>
+                      <p className="text-sm text-gray-500">
+                        Tutte le agibilità della settimana + arretrate
+                      </p>
+                    </div>
+                  </label>
+                  
+                  <label className="flex items-start gap-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+                    <input
+                      type="radio"
+                      name="timingFatturazione"
+                      value="MENSILE"
+                      checked={form.timingFatturazione === 'MENSILE'}
+                      onChange={handleChange}
+                      className="mt-1"
+                    />
+                    <div>
+                      <span className="font-medium text-gray-900">Mensile</span>
+                      <p className="text-sm text-gray-500">
+                        Visibili da fatturare dall'ultimo giorno del mese
+                      </p>
+                    </div>
+                  </label>
+                </div>
+              </div>
             </div>
             
             {/* Scadenza e PA */}
@@ -549,6 +612,27 @@ export default function DettaglioCommittentePage() {
                       {s.nome} ({s.giorni}gg{s.fineMese ? ' FM' : ''})
                     </option>
                   ))}
+                </select>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Metodo di Pagamento Default
+                </label>
+                <select
+                  name="tipoPagamento"
+                  value={form.tipoPagamento}
+                  onChange={handleChange}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="BONIFICO_VISTA">Bonifico vista fattura</option>
+                  <option value="BONIFICO_30GG">Bonifico 30gg</option>
+                  <option value="BONIFICO_60GG">Bonifico 60gg</option>
+                  <option value="RIBA_30GG">RiBa 30gg</option>
+                  <option value="RIBA_60GG">RiBa 60gg</option>
+                  <option value="CARTA_CREDITO">Carta di credito</option>
+                  <option value="CONTANTI">Contanti</option>
+                  <option value="ASSEGNO">Assegno</option>
                 </select>
               </div>
               

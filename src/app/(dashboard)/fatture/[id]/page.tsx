@@ -497,7 +497,7 @@ export default function DettaglioFatturaPage() {
                   />
                 </div>
               ) : (
-                <h1 className="text-2xl font-bold text-gray-900">Fattura {fattura.numero}</h1>
+                <h1 className="text-2xl font-bold text-gray-900">Fattura n. {fattura.progressivo}</h1>
               )}
               <span className={`px-3 py-1 rounded-full text-sm font-medium ${statoInfo.bg} ${statoInfo.text}`}>
                 {statoInfo.label}

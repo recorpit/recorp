@@ -539,7 +539,7 @@ export default function FatturePage() {
                         </td>
                         <td className="px-4 py-3">
                           <span className="font-medium text-gray-900">
-                            {fattura.numero}
+                            {fattura.progressivo}
                           </span>
                         </td>
                         <td className="px-4 py-3 text-sm text-gray-600">

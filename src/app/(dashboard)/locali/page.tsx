@@ -169,10 +169,11 @@ export default function LocaliPage() {
               onChange={(e) => setFiltroCommittente(e.target.value as any)}
               className="flex-1 sm:flex-none px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
             >
-            <option value="tutti">Tutti ({stats.totali})</option>
-            <option value="con_committente">Con committente ({stats.conCommittente})</option>
-            <option value="senza_committente">Senza committente ({stats.senzaCommittente})</option>
-          </select>
+              <option value="tutti">Tutti ({stats.totali})</option>
+              <option value="con_committente">Con committente ({stats.conCommittente})</option>
+              <option value="senza_committente">Senza committente ({stats.senzaCommittente})</option>
+            </select>
+          </div>
         </div>
         
         {/* Contatore risultati */}
@@ -215,91 +216,91 @@ export default function LocaliPage() {
                 </th>
               </tr>
             </thead>
-          <tbody className="divide-y divide-gray-200">
-            {localiFiltrati.length === 0 ? (
-              <tr>
-                <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
-                  <MapPin className="mx-auto mb-2 text-gray-300" size={48} />
-                  {locali.length === 0 ? (
-                    <>
-                      <p>Nessun locale registrato</p>
-                      <Link 
-                        href="/locali/nuovo"
-                        className="text-blue-600 hover:underline mt-2 inline-block"
-                      >
-                        Aggiungi il primo locale
-                      </Link>
-                    </>
-                  ) : (
-                    <>
-                      <p>Nessun risultato per i filtri selezionati</p>
-                      <button 
-                        onClick={() => { setSearchQuery(''); setFiltroTipo(''); setFiltroCommittente('tutti'); }}
-                        className="text-blue-600 hover:underline mt-2 inline-block"
-                      >
-                        Rimuovi filtri
-                      </button>
-                    </>
-                  )}
-                </td>
-              </tr>
-            ) : (
-              localiFiltrati.map((locale) => (
-                <tr key={locale.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-lg bg-green-100 flex items-center justify-center">
-                        <MapPin size={16} className="text-green-600" />
-                      </div>
-                      <div>
-                        <p className="font-medium text-gray-900 text-sm">{locale.nome}</p>
-                        <p className="text-xs text-gray-500">
-                          {TIPI_LOCALE[locale.tipoLocale] || locale.tipoLocale}
-                        </p>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-3 sm:px-4 py-3 hidden sm:table-cell">
-                    <div className="text-xs">
-                      {locale.indirizzo && <p className="text-gray-900 truncate max-w-[150px]">{locale.indirizzo}</p>}
-                      <p className="text-gray-500">
-                        {[locale.citta, locale.provincia].filter(Boolean).join(' ')}
-                      </p>
-                    </div>
-                  </td>
-                  <td className="px-3 sm:px-4 py-3">
-                    {locale.codiceBelfiore ? (
-                      <span className="font-mono text-xs bg-gray-100 px-1.5 py-0.5 rounded">
-                        {locale.codiceBelfiore}
-                      </span>
+            <tbody className="divide-y divide-gray-200">
+              {localiFiltrati.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
+                    <MapPin className="mx-auto mb-2 text-gray-300" size={48} />
+                    {locali.length === 0 ? (
+                      <>
+                        <p>Nessun locale registrato</p>
+                        <Link 
+                          href="/locali/nuovo"
+                          className="text-blue-600 hover:underline mt-2 inline-block"
+                        >
+                          Aggiungi il primo locale
+                        </Link>
+                      </>
                     ) : (
-                      <span className="text-gray-400 text-xs">-</span>
+                      <>
+                        <p>Nessun risultato per i filtri selezionati</p>
+                        <button 
+                          onClick={() => { setSearchQuery(''); setFiltroTipo(''); setFiltroCommittente('tutti'); }}
+                          className="text-blue-600 hover:underline mt-2 inline-block"
+                        >
+                          Rimuovi filtri
+                        </button>
+                      </>
                     )}
-                  </td>
-                  <td className="px-3 sm:px-4 py-3 hidden md:table-cell">
-                    {locale.committenteDefault ? (
-                      <span className="text-xs text-gray-900 truncate max-w-[120px] block">
-                        {locale.committenteDefault.ragioneSociale}
-                      </span>
-                    ) : (
-                      <span className="text-gray-400 text-xs">-</span>
-                    )}
-                  </td>
-                  <td className="px-3 sm:px-4 py-3 text-center">
-                    <span className="text-gray-900 text-sm">{locale._count.agibilita}</span>
-                  </td>
-                  <td className="px-3 sm:px-4 py-3 text-right">
-                    <Link
-                      href={`/locali/${locale.id}`}
-                      className="text-blue-600 hover:text-blue-800 text-sm"
-                    >
-                      Apri
-                    </Link>
                   </td>
                 </tr>
-              ))
-            )}
-          </tbody>
+              ) : (
+                localiFiltrati.map((locale) => (
+                  <tr key={locale.id} className="hover:bg-gray-50">
+                    <td className="px-3 sm:px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-lg bg-green-100 flex items-center justify-center">
+                          <MapPin size={16} className="text-green-600" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-gray-900 text-sm">{locale.nome}</p>
+                          <p className="text-xs text-gray-500">
+                            {TIPI_LOCALE[locale.tipoLocale] || locale.tipoLocale}
+                          </p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-3 sm:px-4 py-3 hidden sm:table-cell">
+                      <div className="text-xs">
+                        {locale.indirizzo && <p className="text-gray-900 truncate max-w-[150px]">{locale.indirizzo}</p>}
+                        <p className="text-gray-500">
+                          {[locale.citta, locale.provincia].filter(Boolean).join(' ')}
+                        </p>
+                      </div>
+                    </td>
+                    <td className="px-3 sm:px-4 py-3">
+                      {locale.codiceBelfiore ? (
+                        <span className="font-mono text-xs bg-gray-100 px-1.5 py-0.5 rounded">
+                          {locale.codiceBelfiore}
+                        </span>
+                      ) : (
+                        <span className="text-gray-400 text-xs">-</span>
+                      )}
+                    </td>
+                    <td className="px-3 sm:px-4 py-3 hidden md:table-cell">
+                      {locale.committenteDefault ? (
+                        <span className="text-xs text-gray-900 truncate max-w-[120px] block">
+                          {locale.committenteDefault.ragioneSociale}
+                        </span>
+                      ) : (
+                        <span className="text-gray-400 text-xs">-</span>
+                      )}
+                    </td>
+                    <td className="px-3 sm:px-4 py-3 text-center">
+                      <span className="text-gray-900 text-sm">{locale._count.agibilita}</span>
+                    </td>
+                    <td className="px-3 sm:px-4 py-3 text-right">
+                      <Link
+                        href={`/locali/${locale.id}`}
+                        className="text-blue-600 hover:text-blue-800 text-sm"
+                      >
+                        Apri
+                      </Link>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
           </table>
         </div>
       </div>

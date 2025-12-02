@@ -224,7 +224,7 @@ export default async function DashboardPage() {
                         </p>
                       </div>
                       <div className="flex items-center gap-2">
-                        {ag.committente.aRischio && (
+                        {ag.committente?.aRischio && (
                           <span className="text-red-500" title="Committente a rischio">
                             <AlertTriangle size={16} />
                           </span>

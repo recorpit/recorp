@@ -369,7 +369,6 @@ export function convertiFatturaToEasyfatt(
   const rows: EasyfattRow[] = fattura.righeFattura.map(riga => ({
     description: riga.descrizione,
     qty: riga.quantita,
-    um: 'pz',
     price: riga.prezzoUnitario,
     vatCode: riga.aliquotaIva,
     vatPerc: riga.aliquotaIva,
@@ -404,6 +403,7 @@ export function convertiFatturaToEasyfatt(
     paymentName: getEasyfattPaymentName(fattura.tipoPagamento),
     paymentBank: azienda.banca ? azienda.banca + ' - IBAN ' + azienda.iban : 'IBAN ' + azienda.iban,
     docReference: fattura.causale || undefined,
+    footNotes: fattura.causale || undefined,
     delayedVat: fattura.splitPayment,
     delayedVatDesc: fattura.splitPayment ? 'Split Payment art. 17-ter DPR 633/72' : undefined,
     rows,

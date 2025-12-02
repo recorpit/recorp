@@ -306,7 +306,8 @@ model Committente {
   giorniPagamento           Int                 @default(30)
   iban                      String?
   modalitaFatturazione      String?             @default("DETTAGLIO_SPESE_INCLUSE")
-  tipoPagamento        String?   @default("BONIFICO_30GG")
+  tipoPagamento             String?             @default("BONIFICO_VISTA")
+  timingFatturazione        String?             @default("SETTIMANALE")
   aRischio                  Boolean             @default(false)
   note                      String?
   noteInterne               String?

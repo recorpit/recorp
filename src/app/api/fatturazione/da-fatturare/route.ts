@@ -1,15 +1,45 @@
 ﻿// src/app/api/fatturazione/da-fatturare/route.ts
-// API Agibilità da Fatturare - Raggruppate per Committente
+// API Agibilità da Fatturare - Raggruppate per Committente con Timing
 
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 
 export const dynamic = 'force-dynamic'
 
+// Helper per calcolare range date in base al timing
+function getDateRange(timing: string): { from: Date | null; showAll: boolean } {
+  const oggi = new Date()
+  oggi.setHours(23, 59, 59, 999)
+  
+  switch (timing) {
+    case 'GIORNALIERA':
+      // Mostra tutte le agibilità passate (fino a oggi)
+      return { from: null, showAll: false }
+      
+    case 'MENSILE':
+      // Mostra solo dall'ultimo giorno del mese
+      const ultimoGiornoMese = new Date(oggi.getFullYear(), oggi.getMonth() + 1, 0)
+      if (oggi.getDate() === ultimoGiornoMese.getDate()) {
+        return { from: null, showAll: false }
+      }
+      // Non è l'ultimo giorno del mese, non mostrare nulla (o solo arretrate)
+      return { from: null, showAll: false }
+      
+    case 'SETTIMANALE':
+    default:
+      // Mostra agibilità della settimana + arretrate
+      return { from: null, showAll: false }
+  }
+}
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const committenteId = searchParams.get('committente')
+    const mostraAnticipate = searchParams.get('anticipate') === 'true'
+    
+    const oggi = new Date()
+    oggi.setHours(23, 59, 59, 999)
     
     // Filtro base
     const where: any = {
@@ -22,6 +52,12 @@ export async function GET(request: NextRequest) {
       where.committenteId = committenteId
     }
     
+    // Se mostraAnticipate, mostra TUTTE le agibilità (anche future)
+    // Altrimenti filtra in base al timing del committente
+    if (!mostraAnticipate) {
+      where.data = { lte: oggi }
+    }
+    
     // Carica agibilità da fatturare
     const agibilita = await prisma.agibilita.findMany({
       where,
@@ -30,7 +66,12 @@ export async function GET(request: NextRequest) {
           select: { nome: true }
         },
         committente: {
-          select: { id: true, ragioneSociale: true, quotaAgenzia: true }
+          select: { 
+            id: true, 
+            ragioneSociale: true, 
+            quotaAgenzia: true,
+            timingFatturazione: true
+          }
         },
         artisti: {
           include: {
@@ -48,7 +89,7 @@ export async function GET(request: NextRequest) {
     
     // Raggruppa per committente
     const byCommittente = new Map<string, {
-      committente: { id: string; ragioneSociale: string; quotaAgenzia: number }
+      committente: { id: string; ragioneSociale: string; quotaAgenzia: number; timingFatturazione: string }
       agibilita: any[]
       totale: number
       count: number
@@ -56,6 +97,29 @@ export async function GET(request: NextRequest) {
     
     agibilita.forEach(agi => {
       if (!agi.committente) return
+      
+      const timing = (agi.committente as any).timingFatturazione || 'SETTIMANALE'
+      
+      // Filtra in base al timing (se non è mostraAnticipate)
+      if (!mostraAnticipate) {
+        const dataAgi = new Date(agi.data)
+        
+        if (timing === 'MENSILE') {
+          // Per mensile, mostra solo se siamo all'ultimo giorno del mese
+          const ultimoGiornoMese = new Date(oggi.getFullYear(), oggi.getMonth() + 1, 0)
+          if (oggi.getDate() !== ultimoGiornoMese.getDate()) {
+            // Non è l'ultimo giorno, mostra solo se è di mesi precedenti
+            const meseAgi = dataAgi.getMonth()
+            const meseOggi = oggi.getMonth()
+            const annoAgi = dataAgi.getFullYear()
+            const annoOggi = oggi.getFullYear()
+            
+            if (annoAgi === annoOggi && meseAgi === meseOggi) {
+              return // Salta, è del mese corrente ma non siamo all'ultimo giorno
+            }
+          }
+        }
+      }
       
       const key = agi.committente.id
       const quotaPerArtista = Number(agi.committente.quotaAgenzia || 0)
@@ -66,7 +130,8 @@ export async function GET(request: NextRequest) {
           committente: {
             id: agi.committente.id,
             ragioneSociale: agi.committente.ragioneSociale,
-            quotaAgenzia: quotaPerArtista
+            quotaAgenzia: quotaPerArtista,
+            timingFatturazione: timing
           },
           agibilita: [],
           totale: 0,

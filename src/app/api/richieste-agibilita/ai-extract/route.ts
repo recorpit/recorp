@@ -46,19 +46,45 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Non autorizzato' }, { status: 401 })
     }
     
+    // Verifica che la chiave API sia configurata
+    if (!process.env.ANTHROPIC_API_KEY) {
+      console.error('ANTHROPIC_API_KEY non configurata')
+      return NextResponse.json({
+        error: 'Configurazione mancante',
+        response: 'Il servizio AI non è configurato correttamente. Contatta l\'amministratore.',
+        extractedData: null
+      }, { status: 500 })
+    }
+    
     const body = await request.json()
     const { message, currentData, conversationHistory } = body
     
-    // Cerca nel database locali e artisti esistenti
-    const locali = await prisma.locale.findMany({
-      take: 100,
-      select: { id: true, nome: true, citta: true, indirizzo: true }
-    })
+    if (!message) {
+      return NextResponse.json({
+        error: 'Messaggio mancante',
+        response: 'Per favore scrivi un messaggio.',
+        extractedData: null
+      }, { status: 400 })
+    }
     
-    const artisti = await prisma.artista.findMany({
-      take: 200,
-      select: { id: true, nomeDarte: true, nome: true, cognome: true, qualifica: true }
-    })
+    // Cerca nel database locali e artisti esistenti
+    let locali: any[] = []
+    let artisti: any[] = []
+    
+    try {
+      locali = await prisma.locale.findMany({
+        take: 100,
+        select: { id: true, nome: true, citta: true, indirizzo: true }
+      })
+      
+      artisti = await prisma.artista.findMany({
+        take: 200,
+        select: { id: true, nomeDarte: true, nome: true, cognome: true, qualifica: true }
+      })
+    } catch (dbError) {
+      console.error('Errore database:', dbError)
+      // Continua senza dati dal DB
+    }
     
     // Costruisci il prompt per Claude
     const systemPrompt = `Sei un assistente per la gestione delle richieste di agibilità ENPALS/INPS nel settore dello spettacolo italiano.
@@ -125,12 +151,22 @@ Se l'utente non fornisce informazioni sull'evento (saluti, domande generiche), r
     })
     
     // Chiama Claude
-    const response = await client.messages.create({
-      model: 'claude-3-5-sonnet-20241022',
-      max_tokens: 1024,
-      system: systemPrompt,
-      messages: claudeMessages,
-    })
+    let response
+    try {
+      response = await client.messages.create({
+        model: 'claude-3-5-sonnet-20241022',
+        max_tokens: 1024,
+        system: systemPrompt,
+        messages: claudeMessages,
+      })
+    } catch (claudeError: any) {
+      console.error('Errore chiamata Claude:', claudeError?.message || claudeError)
+      return NextResponse.json({
+        error: 'Errore AI',
+        response: `Errore nella comunicazione con l'AI: ${claudeError?.message || 'Errore sconosciuto'}. Verifica la configurazione.`,
+        extractedData: null
+      }, { status: 500 })
+    }
     
     // Estrai la risposta
     const assistantMessage = response.content[0]

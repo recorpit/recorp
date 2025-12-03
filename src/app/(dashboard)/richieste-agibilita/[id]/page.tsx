@@ -142,17 +142,21 @@ export default function DettaglioRichiestaPage() {
     if (!richiesta) return
     
     const dati = richiesta.datiRichiesta
-    const params = new URLSearchParams({
-      fromRichiesta: richiesta.id,
-      data: dati.dataEvento,
-      localeNome: dati.locale.nome,
-    })
     
-    if (dati.locale.id) {
-      params.set('localeId', dati.locale.id)
+    // Salva i dati completi in sessionStorage per recuperarli nella pagina nuova agibilità
+    const datiAgibilita = {
+      fromRichiestaId: richiesta.id,
+      fromRichiestaCodice: richiesta.codice,
+      dataEvento: dati.dataEvento,
+      dataFine: dati.dataFine,
+      locale: dati.locale,
+      artisti: dati.artisti,
+      committente: dati.committente,
     }
     
-    router.push(`/agibilita/nuova?${params.toString()}`)
+    sessionStorage.setItem('datiNuovaAgibilita', JSON.stringify(datiAgibilita))
+    
+    router.push('/agibilita/nuova?fromRichiesta=' + richiesta.id)
   }
   
   if (loading) {

@@ -216,6 +216,9 @@ export default function NuovaAgibilitaPage() {
   const prenotazioneInCorso = useRef(false)
   
   // Carica dati iniziali
+  // State per tracciare se arriva da una richiesta
+  const [fromRichiestaId, setFromRichiestaId] = useState<string | null>(null)
+
   useEffect(() => {
     Promise.all([
       fetch('/api/locali').then(r => r.json()),
@@ -225,6 +228,78 @@ export default function NuovaAgibilitaPage() {
       setLocali(l)
       setCommittenti(c)
       setFormats(Array.isArray(f) ? f.filter((fmt: Format) => fmt.attivo !== false) : [])
+      
+      // Dopo aver caricato i dati, controlla se ci sono dati da richiesta
+      const datiSalvati = sessionStorage.getItem('datiNuovaAgibilita')
+      if (datiSalvati) {
+        try {
+          const dati = JSON.parse(datiSalvati)
+          console.log('Dati da richiesta:', dati)
+          
+          setFromRichiestaId(dati.fromRichiestaId)
+          
+          // Precompila locale
+          if (dati.locale?.id) {
+            setForm(prev => ({ ...prev, localeId: dati.locale.id }))
+          }
+          
+          // Precompila committente
+          if (dati.committente?.id) {
+            setForm(prev => ({ ...prev, committenteId: dati.committente.id }))
+          }
+          
+          // Precompila periodi con artisti
+          if (dati.dataEvento) {
+            const dataInizio = dati.dataEvento
+            const dataFine = dati.dataFine || getGiornoDopo(dati.dataEvento)
+            
+            // Prepara artisti per il periodo - cerca nel DB per ID se esistente
+            const artistiPeriodo: ArtistaInPeriodo[] = await Promise.all(
+              (dati.artisti || []).map(async (a: any) => {
+                // Se l'artista ha un ID valido (non generato), cerca i dettagli completi
+                let artistaCompleto = null
+                if (a.id && !a.id.includes('-') && a.id.length > 10) {
+                  // Sembra un ID valido del database, cerca i dettagli
+                  try {
+                    const resArtista = await fetch(`/api/artisti/${a.id}`)
+                    if (resArtista.ok) {
+                      artistaCompleto = await resArtista.json()
+                    }
+                  } catch (e) {
+                    console.error('Errore caricamento artista:', e)
+                  }
+                }
+                
+                return {
+                  id: a.id || generateId(),
+                  nome: artistaCompleto?.nome || a.nome || '',
+                  cognome: artistaCompleto?.cognome || a.cognome || '',
+                  nomeDarte: artistaCompleto?.nomeDarte || a.nomeDarte || null,
+                  qualifica: artistaCompleto?.qualifica || a.qualifica || 'DJ',
+                  tipoContratto: artistaCompleto?.tipoContratto || null,
+                  partitaIva: artistaCompleto?.partitaIva || null,
+                  iscritto: !!a.id && !a.isNuovo,
+                  cachetBase: artistaCompleto?.cachetBase || a.compensoNetto || null,
+                  compensoNetto: (a.compensoNetto || artistaCompleto?.cachetBase || '')?.toString() || '',
+                }
+              })
+            )
+            
+            setPeriodi([{
+              id: generateId(),
+              dataInizio,
+              dataFine,
+              artisti: artistiPeriodo,
+            }])
+          }
+          
+          // Pulisci sessionStorage dopo aver usato i dati
+          sessionStorage.removeItem('datiNuovaAgibilita')
+          
+        } catch (e) {
+          console.error('Errore parsing dati richiesta:', e)
+        }
+      }
     })
     
     if (!prenotazioneInCorso.current) {

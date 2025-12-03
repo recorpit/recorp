@@ -154,7 +154,7 @@ Se l'utente non fornisce informazioni sull'evento (saluti, domande generiche), r
     let response
     try {
       response = await client.messages.create({
-        model: 'claude-3-sonnet-20240229',
+        model: 'claude-3-5-haiku-20241022',
         max_tokens: 1024,
         system: systemPrompt,
         messages: claudeMessages,

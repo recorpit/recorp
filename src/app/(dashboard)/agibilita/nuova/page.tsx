@@ -224,7 +224,7 @@ export default function NuovaAgibilitaPage() {
       fetch('/api/locali').then(r => r.json()),
       fetch('/api/committenti').then(r => r.json()),
       fetch('/api/formats').then(r => r.json()).catch(() => []),
-    ]).then(([l, c, f]) => {
+    ]).then(async ([l, c, f]) => {
       setLocali(l)
       setCommittenti(c)
       setFormats(Array.isArray(f) ? f.filter((fmt: Format) => fmt.attivo !== false) : [])
@@ -253,37 +253,19 @@ export default function NuovaAgibilitaPage() {
             const dataInizio = dati.dataEvento
             const dataFine = dati.dataFine || getGiornoDopo(dati.dataEvento)
             
-            // Prepara artisti per il periodo - cerca nel DB per ID se esistente
-            const artistiPeriodo: ArtistaInPeriodo[] = await Promise.all(
-              (dati.artisti || []).map(async (a: any) => {
-                // Se l'artista ha un ID valido (non generato), cerca i dettagli completi
-                let artistaCompleto = null
-                if (a.id && !a.id.includes('-') && a.id.length > 10) {
-                  // Sembra un ID valido del database, cerca i dettagli
-                  try {
-                    const resArtista = await fetch(`/api/artisti/${a.id}`)
-                    if (resArtista.ok) {
-                      artistaCompleto = await resArtista.json()
-                    }
-                  } catch (e) {
-                    console.error('Errore caricamento artista:', e)
-                  }
-                }
-                
-                return {
-                  id: a.id || generateId(),
-                  nome: artistaCompleto?.nome || a.nome || '',
-                  cognome: artistaCompleto?.cognome || a.cognome || '',
-                  nomeDarte: artistaCompleto?.nomeDarte || a.nomeDarte || null,
-                  qualifica: artistaCompleto?.qualifica || a.qualifica || 'DJ',
-                  tipoContratto: artistaCompleto?.tipoContratto || null,
-                  partitaIva: artistaCompleto?.partitaIva || null,
-                  iscritto: !!a.id && !a.isNuovo,
-                  cachetBase: artistaCompleto?.cachetBase || a.compensoNetto || null,
-                  compensoNetto: (a.compensoNetto || artistaCompleto?.cachetBase || '')?.toString() || '',
-                }
-              })
-            )
+            // Prepara artisti per il periodo - semplice mapping senza fetch aggiuntivi
+            const artistiPeriodo: ArtistaInPeriodo[] = (dati.artisti || []).map((a: any) => ({
+              id: a.id || generateId(),
+              nome: a.nome || '',
+              cognome: a.cognome || '',
+              nomeDarte: a.nomeDarte || null,
+              qualifica: a.qualifica || 'DJ',
+              tipoContratto: null,
+              partitaIva: null,
+              iscritto: !!a.id && !a.isNuovo,
+              cachetBase: a.compensoNetto || null,
+              compensoNetto: (a.compensoNetto || '')?.toString() || '',
+            }))
             
             setPeriodi([{
               id: generateId(),

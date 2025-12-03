@@ -12,9 +12,13 @@ import {
   Wallet, BanknoteIcon, Receipt, ArrowRight, ChevronRight, Settings,
   Zap, Target, Activity
 } from 'lucide-react'
-import { format, differenceInDays, startOfMonth, endOfMonth, subMonths, addMonths } from 'date-fns'
+import { format, differenceInDays, startOfMonth, endOfMonth, subMonths, addMonths, eachDayOfInterval, eachWeekOfInterval, eachMonthOfInterval, startOfWeek, endOfWeek, subDays } from 'date-fns'
 import { it } from 'date-fns/locale'
 import Link from 'next/link'
+import { 
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  BarChart, Bar, Legend, ComposedChart, Line, PieChart as RechartsPie, Pie, Cell
+} from 'recharts'
 
 // ============ INTERFACES ============
 
@@ -309,6 +313,96 @@ export default function TesoreriaPage() {
       .sort((a, b) => b.totale - a.totale)
       .slice(0, 5)
   }, [movimenti])
+
+  // Dati per grafico andamento giornaliero (ultimi 30 giorni)
+  const datiGraficoGiornaliero = useMemo(() => {
+    const oggi = new Date()
+    const trentaGiorniFa = subDays(oggi, 30)
+    
+    const giorni = eachDayOfInterval({ start: trentaGiorniFa, end: oggi })
+    
+    let saldoProgressivo = 0
+    // Calcola saldo iniziale (movimenti prima dei 30 giorni)
+    movimenti.forEach(m => {
+      const data = new Date(m.data)
+      if (data < trentaGiorniFa) {
+        saldoProgressivo += Number(m.importo)
+      }
+    })
+    
+    return giorni.map(giorno => {
+      const movimentiGiorno = movimenti.filter(m => {
+        const data = new Date(m.data)
+        return format(data, 'yyyy-MM-dd') === format(giorno, 'yyyy-MM-dd')
+      })
+      
+      const entrate = movimentiGiorno.filter(m => m.tipo === 'ENTRATA').reduce((s, m) => s + Number(m.importo), 0)
+      const uscite = movimentiGiorno.filter(m => m.tipo === 'USCITA').reduce((s, m) => s + Math.abs(Number(m.importo)), 0)
+      saldoProgressivo += entrate - uscite
+      
+      return {
+        data: format(giorno, 'd MMM', { locale: it }),
+        dataFull: format(giorno, 'dd/MM/yyyy'),
+        entrate,
+        uscite,
+        saldo: saldoProgressivo,
+        netto: entrate - uscite
+      }
+    })
+  }, [movimenti])
+
+  // Dati per grafico mensile (ultimi 6 mesi)
+  const datiGraficoMensile = useMemo(() => {
+    const oggi = new Date()
+    const seiMesiFa = subMonths(oggi, 5)
+    
+    const mesi = eachMonthOfInterval({ start: startOfMonth(seiMesiFa), end: endOfMonth(oggi) })
+    
+    return mesi.map(mese => {
+      const inizioMese = startOfMonth(mese)
+      const fineMese = endOfMonth(mese)
+      
+      const movimentiMese = movimenti.filter(m => {
+        const data = new Date(m.data)
+        return data >= inizioMese && data <= fineMese
+      })
+      
+      const entrate = movimentiMese.filter(m => m.tipo === 'ENTRATA').reduce((s, m) => s + Number(m.importo), 0)
+      const uscite = movimentiMese.filter(m => m.tipo === 'USCITA').reduce((s, m) => s + Math.abs(Number(m.importo)), 0)
+      
+      return {
+        mese: format(mese, 'MMM yy', { locale: it }),
+        meseFull: format(mese, 'MMMM yyyy', { locale: it }),
+        entrate,
+        uscite,
+        netto: entrate - uscite
+      }
+    })
+  }, [movimenti])
+
+  // Dati per grafico a torta categorie
+  const datiGraficoCategorie = useMemo(() => {
+    const riepilogo: Record<string, number> = {}
+    movimenti.filter(m => m.tipo === 'USCITA').forEach(m => {
+      const cat = m.categoria || 'NON_CATEGORIZZATO'
+      riepilogo[cat] = (riepilogo[cat] || 0) + Math.abs(Number(m.importo))
+    })
+    
+    return Object.entries(riepilogo)
+      .map(([cat, tot]) => {
+        const info = CATEGORIE.find(c => c.value === cat)
+        return { 
+          name: info?.label || 'Non categorizzato', 
+          value: tot,
+          color: info?.dotColor?.replace('bg-', '#').replace('-500', '') || '#gray'
+        }
+      })
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 6)
+  }, [movimenti])
+
+  // Colori per il grafico a torta
+  const COLORS_PIE = ['#8b5cf6', '#3b82f6', '#f97316', '#22c55e', '#ef4444', '#6b7280']
 
   // ============ RENDER ============
 
@@ -984,12 +1078,122 @@ export default function TesoreriaPage() {
             </div>
           </div>
           
-          {/* Placeholder grafico */}
-          <div className="bg-white rounded-xl shadow-sm p-8 text-center">
-            <Activity size={48} className="mx-auto text-gray-300 mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">Grafico Cash Flow</h3>
-            <p className="text-gray-500">Visualizzazione andamento entrate/uscite nel tempo</p>
-            <p className="text-sm text-gray-400 mt-2">(Integrazione grafico in sviluppo)</p>
+          {/* Grafico Andamento */}
+          <div className="bg-white rounded-xl shadow-sm p-5">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-semibold text-gray-900">Andamento Cash Flow</h3>
+              <div className="text-sm text-gray-500">Ultimi 30 giorni</div>
+            </div>
+            <div className="h-80">
+              <ResponsiveContainer width="100%" height="100%">
+                <ComposedChart data={datiGraficoGiornaliero}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                  <XAxis 
+                    dataKey="data" 
+                    tick={{ fontSize: 11 }} 
+                    tickLine={false}
+                    interval={4}
+                  />
+                  <YAxis 
+                    tick={{ fontSize: 11 }} 
+                    tickLine={false}
+                    tickFormatter={(v) => `€${(v/1000).toFixed(0)}k`}
+                  />
+                  <Tooltip 
+                    formatter={(value: number, name: string) => [
+                      `€${formatImporto(value)}`, 
+                      name === 'entrate' ? 'Entrate' : name === 'uscite' ? 'Uscite' : 'Saldo'
+                    ]}
+                    labelFormatter={(label) => `Data: ${label}`}
+                    contentStyle={{ borderRadius: '8px', border: '1px solid #e5e7eb' }}
+                  />
+                  <Legend />
+                  <Area 
+                    type="monotone" 
+                    dataKey="saldo" 
+                    fill="#dbeafe" 
+                    stroke="#3b82f6" 
+                    strokeWidth={2}
+                    name="Saldo"
+                  />
+                  <Bar dataKey="entrate" fill="#22c55e" name="Entrate" barSize={8} radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="uscite" fill="#ef4444" name="Uscite" barSize={8} radius={[4, 4, 0, 0]} />
+                </ComposedChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          {/* Grafici affiancati */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Grafico Mensile */}
+            <div className="bg-white rounded-xl shadow-sm p-5">
+              <h3 className="font-semibold text-gray-900 mb-4">Confronto Mensile</h3>
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={datiGraficoMensile}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                    <XAxis dataKey="mese" tick={{ fontSize: 11 }} tickLine={false} />
+                    <YAxis tick={{ fontSize: 11 }} tickLine={false} tickFormatter={(v) => `€${(v/1000).toFixed(0)}k`} />
+                    <Tooltip 
+                      formatter={(value: number, name: string) => [
+                        `€${formatImporto(value)}`, 
+                        name === 'entrate' ? 'Entrate' : name === 'uscite' ? 'Uscite' : 'Netto'
+                      ]}
+                      contentStyle={{ borderRadius: '8px', border: '1px solid #e5e7eb' }}
+                    />
+                    <Legend />
+                    <Bar dataKey="entrate" fill="#22c55e" name="Entrate" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="uscite" fill="#ef4444" name="Uscite" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            {/* Grafico Categorie */}
+            <div className="bg-white rounded-xl shadow-sm p-5">
+              <h3 className="font-semibold text-gray-900 mb-4">Uscite per Categoria</h3>
+              <div className="h-64 flex items-center">
+                {datiGraficoCategorie.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <RechartsPie>
+                      <Pie
+                        data={datiGraficoCategorie}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={50}
+                        outerRadius={80}
+                        paddingAngle={2}
+                        dataKey="value"
+                        label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                        labelLine={false}
+                      >
+                        {datiGraficoCategorie.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS_PIE[index % COLORS_PIE.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip 
+                        formatter={(value: number) => [`€${formatImporto(value)}`, 'Importo']}
+                        contentStyle={{ borderRadius: '8px', border: '1px solid #e5e7eb' }}
+                      />
+                    </RechartsPie>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="w-full text-center text-gray-500">
+                    <PieChart size={48} className="mx-auto text-gray-300 mb-2" />
+                    Nessun dato disponibile
+                  </div>
+                )}
+              </div>
+              {/* Legenda categorie */}
+              <div className="mt-4 grid grid-cols-2 gap-2">
+                {datiGraficoCategorie.slice(0, 6).map((cat, i) => (
+                  <div key={cat.name} className="flex items-center gap-2 text-sm">
+                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: COLORS_PIE[i] }} />
+                    <span className="text-gray-600 truncate">{cat.name}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
           
           {/* Previsioni */}

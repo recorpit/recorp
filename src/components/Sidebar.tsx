@@ -86,6 +86,7 @@ const menuSections: MenuSection[] = [
     items: [
       { href: '/agibilita', label: 'Lista Agibilità', icon: List, permesso: 'agibilita.visualizza' },
       { href: '/richieste-agibilita', label: 'Richieste', icon: Inbox, permesso: 'agibilita.visualizza' },
+      { href: '/richieste-agibilita/chat', label: 'Nuova con AI', icon: Sparkles, permesso: 'agibilita.visualizza' },
       { href: '/agibilita/nuova', label: 'Nuova Agibilità', icon: Plus, permesso: 'agibilita.crea' },
     ]
   },

@@ -1,8 +1,8 @@
 // src/middleware.ts
-// Middleware per protezione route
+// Middleware per protezione route con Supabase Auth
 
-import { auth } from '@/lib/auth'
-import { NextResponse } from 'next/server'
+import { NextResponse, type NextRequest } from 'next/server'
+import { updateSession } from '@/lib/supabase/middleware'
 
 // Route pubbliche (non richiedono autenticazione)
 const publicRoutes = [
@@ -10,16 +10,25 @@ const publicRoutes = [
   '/registrazione',
   '/forgot-password',
   '/reset-password',
+  '/firma', // Pagine firma pubblica
 ]
 
 // Route API pubbliche
 const publicApiRoutes = [
-  '/api/auth',
+  '/api/auth/login',
+  '/api/auth/register',
+  '/api/auth/reset-password',
+  '/api/auth/callback',
+  '/api/firma',
 ]
 
-export default auth((req) => {
-  const { nextUrl } = req
-  const isLoggedIn = !!req.auth
+export async function middleware(request: NextRequest) {
+  const { nextUrl } = request
+  
+  // Aggiorna sessione e ottieni utente
+  const { supabaseResponse, user } = await updateSession(request)
+  
+  const isLoggedIn = !!user
   
   const isPublicRoute = publicRoutes.some(route => 
     nextUrl.pathname === route || nextUrl.pathname.startsWith(route + '/')
@@ -33,7 +42,7 @@ export default auth((req) => {
   
   // API pubbliche - lascia passare
   if (isPublicApiRoute) {
-    return NextResponse.next()
+    return supabaseResponse
   }
   
   // API protette - verifica auth
@@ -46,17 +55,22 @@ export default auth((req) => {
   
   // Route pubbliche - se loggato, redirect a dashboard
   if (isPublicRoute && isLoggedIn) {
-    return NextResponse.redirect(new URL('/', nextUrl))
+    const url = request.nextUrl.clone()
+    url.pathname = '/'
+    return NextResponse.redirect(url)
   }
   
   // Route protette - se non loggato, redirect a login
   if (!isPublicRoute && !isLoggedIn) {
+    const url = request.nextUrl.clone()
     const callbackUrl = encodeURIComponent(nextUrl.pathname + nextUrl.search)
-    return NextResponse.redirect(new URL(`/login?callbackUrl=${callbackUrl}`, nextUrl))
+    url.pathname = '/login'
+    url.searchParams.set('callbackUrl', callbackUrl)
+    return NextResponse.redirect(url)
   }
   
-  return NextResponse.next()
-})
+  return supabaseResponse
+}
 
 export const config = {
   matcher: [

@@ -3,12 +3,13 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { signIn } from 'next-auth/react'
 import Link from 'next/link'
 import { Eye, EyeOff, AlertCircle, Loader2 } from 'lucide-react'
+import { createClient } from '@/lib/supabase/client'
 
 export default function LoginPage() {
   const router = useRouter()
+  const supabase = createClient()
   
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -34,20 +35,37 @@ export default function LoginPage() {
     setLoading(true)
     
     try {
-      const result = await signIn('credentials', {
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({
         email: form.email,
         password: form.password,
-        redirect: false,
       })
       
-      if (result?.error) {
-        setError('Email o password non corretti')
-      } else {
-        // Redirect sempre alla home
+      if (signInError) {
+        console.error('Errore login:', signInError.message)
+        if (signInError.message.includes('Invalid login credentials')) {
+          setError('Email o password non corretti')
+        } else if (signInError.message.includes('Email not confirmed')) {
+          setError('Email non verificata. Controlla la tua casella di posta.')
+        } else {
+          setError('Errore durante il login')
+        }
+        return
+      }
+      
+      if (data.user) {
+        // Aggiorna ultimo login
+        await fetch('/api/auth/update-login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: form.email }),
+        })
+        
+        // Redirect alla home
         router.push('/')
         router.refresh()
       }
     } catch (err: any) {
+      console.error('Errore:', err)
       setError('Errore durante il login')
     } finally {
       setLoading(false)
@@ -150,14 +168,6 @@ export default function LoginPage() {
             </button>
           </form>
         </div>
-        
-        {/* Link registrazione */}
-        <p className="text-center mt-6 text-gray-400">
-          Non hai un account?{' '}
-          <Link href="/registrazione" className="text-blue-400 hover:text-blue-300 font-medium">
-            Registrati
-          </Link>
-        </p>
         
         {/* Footer */}
         <div className="text-center mt-8 text-gray-600 text-sm">

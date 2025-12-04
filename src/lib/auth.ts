@@ -1,131 +1,69 @@
 // src/lib/auth.ts
-// Configurazione NextAuth.js v5
+// Autenticazione con Supabase Auth
 
-import NextAuth from 'next-auth'
-import Credentials from 'next-auth/providers/credentials'
-import bcrypt from 'bcryptjs'
+import { createClient } from '@/lib/supabase/server'
 import { prisma } from '@/lib/db'
 import type { RuoloUtente } from '@prisma/client'
 
-// Estendi i tipi di NextAuth
-declare module 'next-auth' {
-  interface User {
-    id: string
-    email: string
-    nome: string
-    cognome: string
-    ruolo: RuoloUtente
-  }
-  
-  interface Session {
-    user: {
-      id: string
-      email: string
-      nome: string
-      cognome: string
-      ruolo: RuoloUtente
+// Tipo utente per l'applicazione
+export interface AppUser {
+  id: string
+  email: string
+  nome: string
+  cognome: string
+  ruolo: RuoloUtente
+  supabaseId: string
+}
+
+// Ottiene l'utente corrente dalla sessione Supabase + dati da tabella User
+export async function auth(): Promise<{ user: AppUser | null }> {
+  try {
+    const supabase = await createClient()
+    const { data: { user: supabaseUser }, error } = await supabase.auth.getUser()
+    
+    if (error || !supabaseUser) {
+      return { user: null }
     }
+
+    // Cerca l'utente nella tabella User tramite email
+    const dbUser = await prisma.user.findUnique({
+      where: { email: supabaseUser.email! },
+    })
+
+    if (!dbUser || !dbUser.attivo) {
+      return { user: null }
+    }
+
+    return {
+      user: {
+        id: dbUser.id,
+        email: dbUser.email,
+        nome: dbUser.nome,
+        cognome: dbUser.cognome,
+        ruolo: dbUser.ruolo,
+        supabaseId: supabaseUser.id,
+      }
+    }
+  } catch (error) {
+    console.error('Errore auth:', error)
+    return { user: null }
   }
 }
 
-export const { handlers, signIn, signOut, auth } = NextAuth({
-  providers: [
-    Credentials({
-      name: 'credentials',
-      credentials: {
-        email: { label: 'Email', type: 'email' },
-        password: { label: 'Password', type: 'password' },
-      },
-      async authorize(credentials) {
-        console.log('🔍 === INIZIO AUTHORIZE ===')
-        
-        if (!credentials?.email || !credentials?.password) {
-          console.log('❌ Credenziali mancanti')
-          return null
-        }
+// Aggiorna ultimo login
+export async function updateLastLogin(email: string) {
+  try {
+    await prisma.user.update({
+      where: { email },
+      data: { lastLoginAt: new Date() },
+    })
+  } catch (error) {
+    console.error('Errore aggiornamento lastLogin:', error)
+  }
+}
 
-        const email = credentials.email as string
-        const password = credentials.password as string
-
-        console.log('📧 Email inserita:', email)
-
-        // Cerca utente
-        const user = await prisma.user.findUnique({
-          where: { email },
-        })
-
-        console.log('👤 Utente trovato:', user ? 'SI' : 'NO')
-        
-        if (!user) {
-          console.log('❌ Utente non trovato nel DB')
-          return null
-        }
-        
-        console.log('📧 Email nel DB:', user.email)
-        console.log('🔐 Hash password (primi 30 char):', user.password.substring(0, 30))
-        console.log('✅ Attivo:', user.attivo)
-
-        if (!user.attivo) {
-          console.log('❌ Utente non attivo')
-          return null
-        }
-
-        // Verifica password
-        const passwordMatch = await bcrypt.compare(password, user.password)
-        console.log('🔑 Password match:', passwordMatch)
-
-        if (!passwordMatch) {
-          console.log('❌ Password NON corrisponde')
-          return null
-        }
-
-        console.log('✅ Login OK!')
-
-        // Aggiorna ultimo login
-        await prisma.user.update({
-          where: { id: user.id },
-          data: { lastLoginAt: new Date() },
-        })
-
-        return {
-          id: user.id,
-          email: user.email,
-          nome: user.nome,
-          cognome: user.cognome,
-          ruolo: user.ruolo,
-        }
-      },
-    }),
-  ],
-  callbacks: {
-    async jwt({ token, user }) {
-      if (user) {
-        token.id = user.id as string
-        token.email = user.email as string
-        token.nome = (user as any).nome as string
-        token.cognome = (user as any).cognome as string
-        token.ruolo = (user as any).ruolo as RuoloUtente
-      }
-      return token
-    },
-    async session({ session, token }) {
-      session.user = {
-        id: token.id as string,
-        email: token.email as string,
-        nome: token.nome as string,
-        cognome: token.cognome as string,
-        ruolo: token.ruolo as RuoloUtente,
-        emailVerified: null,
-      } as any
-      return session
-    },
-  },
-  pages: {
-    signIn: '/login',
-    error: '/login',
-  },
-  session: {
-    strategy: 'jwt',
-    maxAge: 30 * 24 * 60 * 60, // 30 giorni
-  },
-})
+// Sign out
+export async function signOut() {
+  const supabase = await createClient()
+  await supabase.auth.signOut()
+}

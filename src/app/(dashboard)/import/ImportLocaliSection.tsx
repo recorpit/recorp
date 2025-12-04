@@ -2,9 +2,8 @@
 
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Loader2, MapPin, Building2, CheckCircle2, AlertCircle, ArrowRight, Download } from 'lucide-react'
 import {
   Table,
   TableBody,
@@ -13,14 +12,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from '@/components/ui/accordion'
-import { ScrollArea } from '@/components/ui/scroll-area'
-import { Checkbox } from '@/components/ui/checkbox'
 
 interface LocaleImport {
   id?: string
@@ -75,6 +66,7 @@ export function ImportLocaliSection() {
   const [result, setResult] = useState<ImportResult | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [inserisciNuovi, setInserisciNuovi] = useState(false)
+  const [expandedSection, setExpandedSection] = useState<string | null>('aggiornare')
 
   const fetchPreview = async () => {
     setLoading(true)
@@ -82,7 +74,7 @@ export function ImportLocaliSection() {
     setResult(null)
     
     try {
-      const res = await fetch('/api/import/locali')
+      const res = await fetch('/api/import/locali/belfiore')
       const data = await res.json()
       
       if (!res.ok) {
@@ -102,7 +94,7 @@ export function ImportLocaliSection() {
     setError(null)
     
     try {
-      const res = await fetch('/api/import/locali', {
+      const res = await fetch('/api/import/locali/belfiore', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ inserisciNuovi }),
@@ -114,7 +106,6 @@ export function ImportLocaliSection() {
       }
       
       setResult(data)
-      // Ricarica anteprima per vedere stato aggiornato
       await fetchPreview()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Errore sconosciuto')
@@ -123,32 +114,44 @@ export function ImportLocaliSection() {
     }
   }
 
+  const toggleSection = (section: string) => {
+    setExpandedSection(expandedSection === section ? null : section)
+  }
+
   return (
     <Card>
       <CardHeader>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-green-100 rounded-lg">
-              <MapPin className="h-6 w-6 text-green-600" />
+              <svg className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
             </div>
             <div>
               <CardTitle>Import Locali con Codice Belfiore</CardTitle>
-              <CardDescription>
+              <p className="text-sm text-slate-500 mt-1">
                 Aggiorna i dati dei locali (indirizzo, città, CAP) e aggiungi il codice Belfiore per le agibilità INPS
-              </CardDescription>
+              </p>
             </div>
           </div>
           <Button onClick={fetchPreview} disabled={loading}>
             {loading ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              <span className="flex items-center gap-2">
+                <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                </svg>
                 Caricamento...
-              </>
+              </span>
             ) : (
-              <>
-                <Download className="mr-2 h-4 w-4" />
+              <span className="flex items-center gap-2">
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
                 Anteprima Import
-              </>
+              </span>
             )}
           </Button>
         </div>
@@ -157,7 +160,9 @@ export function ImportLocaliSection() {
       <CardContent className="space-y-4">
         {error && (
           <div className="p-4 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2 text-red-700">
-            <AlertCircle className="h-5 w-5" />
+            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
             {error}
           </div>
         )}
@@ -168,7 +173,9 @@ export function ImportLocaliSection() {
               ? 'bg-green-50 border border-green-200 text-green-700' 
               : 'bg-yellow-50 border border-yellow-200 text-yellow-700'
           }`}>
-            <CheckCircle2 className="h-5 w-5" />
+            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
             <div>
               <p className="font-medium">{result.message}</p>
               {result.risultati.errori.length > 0 && (
@@ -208,21 +215,27 @@ export function ImportLocaliSection() {
               </div>
             </div>
             
-            {/* Accordion con dettagli */}
-            <Accordion type="multiple" className="w-full">
+            {/* Sezioni espandibili */}
+            <div className="space-y-2">
               {/* Da Aggiornare */}
               {report.daAggiornare.length > 0 && (
-                <AccordionItem value="aggiornare">
-                  <AccordionTrigger>
+                <div className="border rounded-lg">
+                  <button
+                    className="w-full p-4 flex items-center justify-between hover:bg-slate-50"
+                    onClick={() => toggleSection('aggiornare')}
+                  >
                     <div className="flex items-center gap-2">
-                      <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
+                      <Badge className="bg-amber-100 text-amber-700 border-amber-200">
                         {report.daAggiornare.length}
                       </Badge>
-                      Locali da aggiornare
+                      <span className="font-medium">Locali da aggiornare</span>
                     </div>
-                  </AccordionTrigger>
-                  <AccordionContent>
-                    <ScrollArea className="h-[300px]">
+                    <svg className={`h-5 w-5 transition-transform ${expandedSection === 'aggiornare' ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+                  {expandedSection === 'aggiornare' && (
+                    <div className="border-t max-h-[300px] overflow-auto">
                       <Table>
                         <TableHeader>
                           <TableRow>
@@ -241,16 +254,14 @@ export function ImportLocaliSection() {
                                 {locale.vecchiDati?.indirizzo || '-'}
                                 {locale.vecchiDati?.citta && `, ${locale.vecchiDati.citta}`}
                               </TableCell>
-                              <TableCell className="text-center">
-                                <ArrowRight className="h-4 w-4 text-amber-500 mx-auto" />
-                              </TableCell>
+                              <TableCell className="text-center text-amber-500">→</TableCell>
                               <TableCell className="text-green-700">
                                 {locale.nuoviDati?.indirizzo}
                                 {locale.nuoviDati?.citta && `, ${locale.nuoviDati.citta}`}
                                 {locale.nuoviDati?.provincia && ` (${locale.nuoviDati.provincia})`}
                               </TableCell>
                               <TableCell>
-                                <Badge variant="secondary" className="font-mono">
+                                <Badge variant="default" className="font-mono">
                                   {locale.nuoviDati?.codiceBelfiore}
                                 </Badge>
                               </TableCell>
@@ -258,48 +269,61 @@ export function ImportLocaliSection() {
                           ))}
                         </TableBody>
                       </Table>
-                    </ScrollArea>
-                  </AccordionContent>
-                </AccordionItem>
+                    </div>
+                  )}
+                </div>
               )}
               
               {/* Già Completi */}
               {report.giaCompleti.length > 0 && (
-                <AccordionItem value="completi">
-                  <AccordionTrigger>
+                <div className="border rounded-lg">
+                  <button
+                    className="w-full p-4 flex items-center justify-between hover:bg-slate-50"
+                    onClick={() => toggleSection('completi')}
+                  >
                     <div className="flex items-center gap-2">
-                      <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                      <Badge className="bg-green-100 text-green-700 border-green-200">
                         {report.giaCompleti.length}
                       </Badge>
-                      Locali già completi (nessuna modifica)
+                      <span className="font-medium">Locali già completi (nessuna modifica)</span>
                     </div>
-                  </AccordionTrigger>
-                  <AccordionContent>
-                    <div className="flex flex-wrap gap-2 p-2">
-                      {report.giaCompleti.map((nome, i) => (
-                        <Badge key={i} variant="secondary" className="bg-green-50">
-                          <CheckCircle2 className="h-3 w-3 mr-1" />
-                          {nome}
-                        </Badge>
-                      ))}
+                    <svg className={`h-5 w-5 transition-transform ${expandedSection === 'completi' ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+                  {expandedSection === 'completi' && (
+                    <div className="border-t p-4">
+                      <div className="flex flex-wrap gap-2">
+                        {report.giaCompleti.map((nome, i) => (
+                          <Badge key={i} variant="default" className="bg-green-50">
+                            ✓ {nome}
+                          </Badge>
+                        ))}
+                      </div>
                     </div>
-                  </AccordionContent>
-                </AccordionItem>
+                  )}
+                </div>
               )}
               
               {/* Nuovi */}
               {report.nuovi.length > 0 && (
-                <AccordionItem value="nuovi">
-                  <AccordionTrigger>
+                <div className="border rounded-lg">
+                  <button
+                    className="w-full p-4 flex items-center justify-between hover:bg-slate-50"
+                    onClick={() => toggleSection('nuovi')}
+                  >
                     <div className="flex items-center gap-2">
-                      <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">
+                      <Badge className="bg-purple-100 text-purple-700 border-purple-200">
                         {report.nuovi.length}
                       </Badge>
-                      Locali nuovi (non presenti nel DB)
+                      <span className="font-medium">Locali nuovi (non presenti nel DB)</span>
                     </div>
-                  </AccordionTrigger>
-                  <AccordionContent>
-                    <ScrollArea className="h-[200px]">
+                    <svg className={`h-5 w-5 transition-transform ${expandedSection === 'nuovi' ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+                  {expandedSection === 'nuovi' && (
+                    <div className="border-t max-h-[200px] overflow-auto">
                       <Table>
                         <TableHeader>
                           <TableRow>
@@ -316,7 +340,7 @@ export function ImportLocaliSection() {
                               <TableCell>{locale.indirizzo}</TableCell>
                               <TableCell>{locale.citta} ({locale.provincia})</TableCell>
                               <TableCell>
-                                <Badge variant="secondary" className="font-mono">
+                                <Badge variant="default" className="font-mono">
                                   {locale.codiceBelfiore}
                                 </Badge>
                               </TableCell>
@@ -324,56 +348,62 @@ export function ImportLocaliSection() {
                           ))}
                         </TableBody>
                       </Table>
-                    </ScrollArea>
-                  </AccordionContent>
-                </AccordionItem>
+                    </div>
+                  )}
+                </div>
               )}
               
               {/* Non Trovati */}
               {report.nonTrovati.length > 0 && (
-                <AccordionItem value="nontrovati">
-                  <AccordionTrigger>
+                <div className="border rounded-lg">
+                  <button
+                    className="w-full p-4 flex items-center justify-between hover:bg-slate-50"
+                    onClick={() => toggleSection('nontrovati')}
+                  >
                     <div className="flex items-center gap-2">
-                      <Badge variant="outline" className="bg-slate-50 text-slate-700 border-slate-200">
+                      <Badge className="bg-slate-100 text-slate-700 border-slate-200">
                         {report.nonTrovati.length}
                       </Badge>
-                      Locali nel DB senza match (non modificati)
+                      <span className="font-medium">Locali nel DB senza match (non modificati)</span>
                     </div>
-                  </AccordionTrigger>
-                  <AccordionContent>
-                    <div className="flex flex-wrap gap-2 p-2">
-                      {report.nonTrovati.slice(0, 50).map((nome, i) => (
-                        <Badge key={i} variant="outline" className="text-slate-500">
-                          {nome}
-                        </Badge>
-                      ))}
-                      {report.nonTrovati.length > 50 && (
-                        <Badge variant="outline">
-                          +{report.nonTrovati.length - 50} altri
-                        </Badge>
-                      )}
+                    <svg className={`h-5 w-5 transition-transform ${expandedSection === 'nontrovati' ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+                  {expandedSection === 'nontrovati' && (
+                    <div className="border-t p-4">
+                      <div className="flex flex-wrap gap-2 max-h-[150px] overflow-auto">
+                        {report.nonTrovati.slice(0, 50).map((nome, i) => (
+                          <Badge key={i} variant="default" className="text-slate-500">
+                            {nome}
+                          </Badge>
+                        ))}
+                        {report.nonTrovati.length > 50 && (
+                          <Badge variant="default">
+                            +{report.nonTrovati.length - 50} altri
+                          </Badge>
+                        )}
+                      </div>
                     </div>
-                  </AccordionContent>
-                </AccordionItem>
+                  )}
+                </div>
               )}
-            </Accordion>
+            </div>
             
             {/* Azioni */}
             {(report.daAggiornare.length > 0 || report.nuovi.length > 0) && (
               <div className="flex items-center justify-between pt-4 border-t">
-                <div className="flex items-center space-x-2">
-                  <Checkbox 
-                    id="inserisciNuovi" 
+                <label className="flex items-center space-x-2 cursor-pointer">
+                  <input 
+                    type="checkbox"
                     checked={inserisciNuovi}
-                    onCheckedChange={(checked) => setInserisciNuovi(checked === true)}
+                    onChange={(e) => setInserisciNuovi(e.target.checked)}
+                    className="rounded border-gray-300"
                   />
-                  <label 
-                    htmlFor="inserisciNuovi" 
-                    className="text-sm text-slate-600 cursor-pointer"
-                  >
+                  <span className="text-sm text-slate-600">
                     Inserisci anche i {report.nuovi.length} locali nuovi
-                  </label>
-                </div>
+                  </span>
+                </label>
                 
                 <Button 
                   onClick={executeImport} 
@@ -381,16 +411,21 @@ export function ImportLocaliSection() {
                   className="bg-green-600 hover:bg-green-700"
                 >
                   {importing ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    <span className="flex items-center gap-2">
+                      <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                      </svg>
                       Importazione...
-                    </>
+                    </span>
                   ) : (
-                    <>
-                      <Building2 className="mr-2 h-4 w-4" />
+                    <span className="flex items-center gap-2">
+                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                      </svg>
                       Importa {report.daAggiornare.length} Locali
                       {inserisciNuovi && report.nuovi.length > 0 && ` + ${report.nuovi.length} nuovi`}
-                    </>
+                    </span>
                   )}
                 </Button>
               </div>
@@ -400,7 +435,10 @@ export function ImportLocaliSection() {
         
         {!report && !loading && (
           <div className="text-center py-8 text-slate-500">
-            <MapPin className="h-12 w-12 mx-auto mb-3 opacity-50" />
+            <svg className="h-12 w-12 mx-auto mb-3 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
             <p>Clicca "Anteprima Import" per vedere i locali da aggiornare</p>
             <p className="text-sm mt-1">
               Verranno aggiornati indirizzo, città, CAP, telefono e codice Belfiore

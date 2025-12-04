@@ -38,6 +38,11 @@ export async function GET(request: NextRequest) {
       fatturatoAnno,
       bozzeAttive,
       prenotazioniAttive,
+      // NUOVE STATISTICHE: Artisti in regola
+      artistiInRegolaTotale,
+      artistiInRegolaMese,
+      artistiInRegolaAnno,
+      artistiSingoliAnno,
     ] = await Promise.all([
       // Artisti
       prisma.artista.count(),
@@ -122,7 +127,61 @@ export async function GET(request: NextRequest) {
           scadeAt: { gte: oggi }
         }
       }),
+      
+      // NUOVE QUERY: Artisti in regola (ogni presenza = 1 documento)
+      // Totale presenze artisti (tutti i tempi)
+      prisma.artistaAgibilita.count({
+        where: {
+          agibilita: { stato: 'COMPLETATA' }
+        }
+      }),
+      
+      // Presenze artisti nel mese corrente
+      prisma.artistaAgibilita.count({
+        where: {
+          agibilita: {
+            stato: 'COMPLETATA',
+            data: { gte: inizioMese, lte: fineMese }
+          }
+        }
+      }),
+      
+      // Presenze artisti nell'anno corrente
+      prisma.artistaAgibilita.count({
+        where: {
+          agibilita: {
+            stato: 'COMPLETATA',
+            data: { gte: inizioAnno, lte: fineAnno }
+          }
+        }
+      }),
+      
+      // Artisti singoli (unici) nell'anno
+      prisma.artistaAgibilita.groupBy({
+        by: ['artistaId'],
+        where: {
+          agibilita: {
+            stato: 'COMPLETATA',
+            data: { gte: inizioAnno, lte: fineAnno }
+          }
+        }
+      }),
     ])
+    
+    // Calcola numero agibilità completate per la media
+    const agibilitaCompletateAnno = await prisma.agibilita.count({
+      where: {
+        stato: 'COMPLETATA',
+        data: { gte: inizioAnno, lte: fineAnno }
+      }
+    })
+    
+    const agibilitaCompletateMese = await prisma.agibilita.count({
+      where: {
+        stato: 'COMPLETATA',
+        data: { gte: inizioMese, lte: fineMese }
+      }
+    })
     
     // Top 5 committenti per fatturato
     const topCommittenti = await prisma.agibilita.groupBy({
@@ -191,6 +250,25 @@ export async function GET(request: NextRequest) {
           errore: agibilitaErrore,
         },
         mese: agibilitaMese,
+      },
+      // NUOVA SEZIONE: Artisti in regola
+      artistiInRegola: {
+        // Presenze totali (ogni riga ArtistaAgibilita = 1 documento)
+        presenzeTotali: artistiInRegolaTotale,
+        presenzeMese: artistiInRegolaMese,
+        presenzeAnno: artistiInRegolaAnno,
+        // Artisti unici nell'anno
+        artistiSingoliAnno: artistiSingoliAnno.length,
+        // Numero documenti (agibilità completate)
+        documentiAnno: agibilitaCompletateAnno,
+        documentiMese: agibilitaCompletateMese,
+        // Media artisti per documento
+        mediaPerDocumentoAnno: agibilitaCompletateAnno > 0 
+          ? Math.round((artistiInRegolaAnno / agibilitaCompletateAnno) * 100) / 100 
+          : 0,
+        mediaPerDocumentoMese: agibilitaCompletateMese > 0 
+          ? Math.round((artistiInRegolaMese / agibilitaCompletateMese) * 100) / 100 
+          : 0,
       },
       pagamenti: {
         daPagare: pagamentiDaPagare,

@@ -3,14 +3,19 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import type { User } from '@supabase/supabase-js'
+import type { RuoloUtente } from '@prisma/client'
 
-interface AppUser {
+export interface AppUser {
   id: string
   email: string
   nome: string
   cognome: string
-  ruolo: string
+  ruolo: RuoloUtente
+}
+
+// Helper per verificare ruoli
+export function hasRole(userRole: RuoloUtente, allowedRoles: RuoloUtente[]): boolean {
+  return allowedRoles.includes(userRole)
 }
 
 export function useCurrentUser() {
@@ -69,5 +74,6 @@ export function useCurrentUser() {
     }
   }, [])
 
-  return { user, loading }
+  // Esporta sia loading che isLoading per compatibilità
+  return { user, loading, isLoading: loading }
 }

@@ -39,7 +39,7 @@ export async function GET() {
     
     // Prima i permessi del ruolo
     for (const pr of permessiRuolo) {
-      permessiMap.set(pr.permesso.codice, pr.concesso)
+      permessiMap.set(pr.permesso.codice, true)
     }
     
     // Poi i permessi specifici utente (override)

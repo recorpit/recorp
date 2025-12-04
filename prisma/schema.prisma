@@ -7,731 +7,9 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model Artista {
-  id                   String                   @id @default(cuid())
-  nome                 String
-  cognome              String
-  nomeDarte            String?
-  codiceFiscale        String?                  @unique
-  partitaIva           String?
-  email                String?
-  telefono             String?
-  telefonoSecondario   String?
-  indirizzo            String?
-  cap                  String?
-  citta                String?
-  provincia            String?
-  dataNascita          DateTime?
-  comuneNascita        String?
-  provinciaNascita     String?
-  cachetBase           Decimal?                 @db.Decimal(10, 2)
-  iban                 String?
-  tipoPagamento        TipoPagamentoArtista     @default(STANDARD_15GG)
-  note                 String?
-  noteInterne          String?
-  createdAt            DateTime                 @default(now())
-  updatedAt            DateTime                 @updatedAt
-  codiceFiscaleEstero  String?
-  iscritto             Boolean                  @default(false)
-  matricolaEnpals      String?
-  nazionalita          String                   @default("IT")
-  tipoContratto        TipoContratto            @default(PRESTAZIONE_OCCASIONALE)
-  extraUE              Boolean                  @default(false)
-  maggiorenne          Boolean                  @default(true)
-  numeroDocumento      String?
-  scadenzaDocumento    DateTime?
-  sesso                String?
-  tipoDocumento        TipoDocumento?
-  bic                  String?
-  codiceCommercialista String?                  @unique
-  qualifica            String                   @default("Altro")
-  agibilita            ArtistaAgibilita[]
-  documentiArchivio    Documento[]              @relation("DocumentiArchivio")
-  documenti            DocumentoArtista[]
-  fattureRicevute      FatturaArtista[]         @relation("FattureArtista")
-  presenzeMensili      PresenzaMensile[]        @relation("PresenzeArtista")
-  prestazioni          PrestazioneOccasionale[]
-
-  @@index([cognome, nome])
-  @@index([nomeDarte])
-  @@index([iscritto])
-}
-
-model DocumentoArtista {
-  id         String        @id @default(cuid())
-  artistaId  String
-  tipo       TipoDocumento
-  nome       String
-  path       String
-  mimeType   String?
-  dimensione Int?
-  createdAt  DateTime      @default(now())
-  artista    Artista       @relation(fields: [artistaId], references: [id], onDelete: Cascade)
-
-  @@index([artistaId])
-}
-
-model Locale {
-  id                   String       @id @default(cuid())
-  nome                 String
-  referenteNome        String?
-  referenteTelefono    String?
-  referenteEmail       String?
-  note                 String?
-  noteInterne          String?
-  createdAt            DateTime     @default(now())
-  updatedAt            DateTime     @updatedAt
-  cap                  String?
-  citta                String?
-  codiceBelfiore       String?
-  committenteDefaultId String?
-  indirizzo            String?
-  provincia            String?
-  tipoLocale           TipoLocale   @default(ALTRO)
-  agibilita            Agibilita[]
-  documentiArchivio    Documento[]  @relation("DocumentiArchivio")
-  committenteDefault   Committente? @relation("LocaleCommittenteDefault", fields: [committenteDefaultId], references: [id])
-
-  @@index([nome])
-  @@index([citta])
-}
-
-model Committente {
-  id                        String              @id @default(cuid())
-  ragioneSociale            String
-  partitaIva                String?
-  codiceFiscale             String?
-  email                     String?
-  pec                       String?
-  telefono                  String?
-  codiceSDI                 String              @default("0000000")
-  indirizzoFatturazione     String?
-  capFatturazione           String?
-  cittaFatturazione         String?
-  provinciaFatturazione     String?
-  quotaAgenzia              Decimal             @default(0) @db.Decimal(10, 2)
-  giorniPagamento           Int                 @default(30)
-  iban                      String?
-  modalitaFatturazione      String?             @default("DETTAGLIO_SPESE_INCLUSE")
-  tipoPagamento             String?             @default("BONIFICO_30GG")
-  aRischio                  Boolean             @default(false)
-  note                      String?
-  noteInterne               String?
-  createdAt                 DateTime            @default(now())
-  updatedAt                 DateTime            @updatedAt
-  isPubblicaAmministrazione Boolean             @default(false)
-  splitPayment              Boolean             @default(false)
-  scadenzaPagamentoId       String?
-  timingFatturazione        String?             @default("SETTIMANALE")
-  agibilita                 Agibilita[]
-  scadenzaPagamento         ScadenzaPagamento?  @relation(fields: [scadenzaPagamentoId], references: [id])
-  documentiArchivio         Documento[]         @relation("DocumentiArchivio")
-  fatture                   Fattura[]
-  formats                   FormatCommittente[]
-  localiDefault             Locale[]            @relation("LocaleCommittenteDefault")
-  noteDiCredito             NotaDiCredito[]
-
-  @@index([ragioneSociale])
-  @@index([aRischio])
-}
-
-model Agibilita {
-  id                            String                @id @default(cuid())
-  stato                         StatoAgibilita        @default(BOZZA)
-  xmlPath                       String?
-  xmlGeneratoAt                 DateTime?
-  ricevutaINPSPath              String?
-  ricevutaCaricataAt            DateTime?
-  inviatoLocale                 Boolean               @default(false)
-  inviatoLocaleAt               DateTime?
-  note                          String?
-  errore                        String?
-  createdAt                     DateTime              @default(now())
-  updatedAt                     DateTime              @updatedAt
-  bozzaOriginaleId              String?
-  codice                        String                @unique
-  committenteId                 String?
-  data                          DateTime
-  fatturaId                     String?
-  importoFattura                Decimal               @default(0) @db.Decimal(10, 2)
-  inviatoCommittente            Boolean               @default(false)
-  inviatoCommittenteAt          DateTime?
-  localeId                      String
-  luogoPrestazione              String?
-  noteInterne                   String?
-  quotaAgenzia                  Decimal               @default(0) @db.Decimal(10, 2)
-  richiedente                   Richiedente           @default(COMMITTENTE)
-  statoFattura                  StatoFatturaAgibilita @default(DA_FATTURARE)
-  dataFine                      DateTime?
-  totaleCompensiLordi           Decimal               @default(0) @db.Decimal(10, 2)
-  totaleCompensiNetti           Decimal               @default(0) @db.Decimal(10, 2)
-  totaleRitenute                Decimal               @default(0) @db.Decimal(10, 2)
-  erroreINPS                    String?
-  esitoINPS                     String?
-  hashINPS                      String?
-  identificativoINPS            Int?
-  identificativoOccupazioneINPS Int?
-  identificativoPeriodoINPS     Int?
-  inviatoINPSAt                 DateTime?
-  rispostaINPSAt                DateTime?
-  estera                        Boolean               @default(false)
-  paeseEstero                   String?
-  formatId                      String?
-  committente                   Committente?          @relation(fields: [committenteId], references: [id])
-  fattura                       Fattura?              @relation(fields: [fatturaId], references: [id])
-  format                        Format?               @relation(fields: [formatId], references: [id])
-  locale                        Locale                @relation(fields: [localeId], references: [id])
-  artisti                       ArtistaAgibilita[]
-  documentiArchivio             Documento[]           @relation("DocumentiArchivio")
-  RichiestaAgibilita            RichiestaAgibilita[]
-
-  @@index([data])
-  @@index([stato])
-  @@index([localeId])
-  @@index([committenteId])
-  @@index([statoFattura])
-  @@index([formatId])
-}
-
-model ArtistaAgibilita {
-  id                           String                @id @default(cuid())
-  agibilitaId                  String
-  artistaId                    String
-  compensoNetto                Decimal               @db.Decimal(10, 2)
-  compensoLordo                Decimal               @db.Decimal(10, 2)
-  ritenuta                     Decimal               @db.Decimal(10, 2)
-  statoPagamento               StatoPagamentoArtista @default(DA_PAGARE)
-  scadenzaPagamento            DateTime?
-  dataPagamento                DateTime?
-  metodoPagamento              String?
-  inviatoArtista               Boolean               @default(false)
-  inviatoArtistaAt             DateTime?
-  pdfArtistaPath               String?
-  createdAt                    DateTime              @default(now())
-  identificativoLavoratoreINPS Int?
-  dataFine                     DateTime?
-  dataInizio                   DateTime?
-  qualifica                    String?
-  agibilita                    Agibilita             @relation(fields: [agibilitaId], references: [id], onDelete: Cascade)
-  artista                      Artista               @relation(fields: [artistaId], references: [id])
-
-  @@unique([agibilitaId, artistaId])
-  @@index([agibilitaId])
-  @@index([artistaId])
-  @@index([statoPagamento])
-}
-
-model Notifica {
-  id             String       @id @default(cuid())
-  tipo           TipoNotifica
-  titolo         String
-  messaggio      String
-  agibilitaId    String?
-  artistaId      String?
-  committenteId  String?
-  link           String?
-  destinatarioId String?
-  letto          Boolean      @default(false)
-  lettoAt        DateTime?
-  createdAt      DateTime     @default(now())
-  User           User?        @relation(fields: [destinatarioId], references: [id])
-
-  @@index([tipo])
-  @@index([destinatarioId, letto])
-}
-
-model Fattura {
-  id                  String              @id @default(cuid())
-  numero              String              @unique
-  anno                Int
-  progressivo         Int
-  committenteId       String
-  dataEmissione       DateTime
-  dataScadenza        DateTime?
-  imponibile          Decimal             @db.Decimal(10, 2)
-  iva                 Decimal             @db.Decimal(10, 2)
-  totale              Decimal             @db.Decimal(10, 2)
-  stato               StatoFattura        @default(BOZZA)
-  pdfPath             String?
-  xmlPath             String?
-  dataPagamento       DateTime?
-  note                String?
-  tipoPagamento       String              @default("BONIFICO_VISTA")
-  dataEsportazione    DateTime?
-  createdAt           DateTime            @default(now())
-  updatedAt           DateTime            @updatedAt
-  modalitaRighe       String?             @default("DETTAGLIO_SPESE_INCLUSE")
-  descrizioneGenerica String?
-  aliquotaIva         Int                 @default(22)
-  splitPayment        Boolean             @default(false)
-  righeFattura        Json?
-  causale             String?
-  progressivoInvio    String?
-  scadenzaPagamentoId String?
-  agibilita           Agibilita[]
-  committente         Committente         @relation(fields: [committenteId], references: [id])
-  scadenzaPagamento   ScadenzaPagamento?  @relation(fields: [scadenzaPagamentoId], references: [id])
-  MovimentoBancario   MovimentoBancario[]
-  noteDiCredito       NotaDiCredito[]
-
-  @@unique([anno, progressivo])
-  @@index([stato])
-  @@index([committenteId])
-}
-
-model ScadenzaPagamento {
-  id          String        @id @default(cuid())
-  nome        String
-  codice      String        @unique
-  giorni      Int           @default(0)
-  fineMese    Boolean       @default(false)
-  descrizione String?
-  attivo      Boolean       @default(true)
-  ordine      Int           @default(0)
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
-  committenti Committente[]
-  fatture     Fattura[]
-}
-
-model NotaDiCredito {
-  id                   String      @id @default(cuid())
-  numero               String      @unique
-  anno                 Int
-  progressivo          Int
-  fatturaRiferimentoId String
-  committenteId        String
-  dataEmissione        DateTime    @default(now())
-  imponibile           Decimal     @db.Decimal(10, 2)
-  aliquotaIva          Int         @default(22)
-  iva                  Decimal     @db.Decimal(10, 2)
-  totale               Decimal     @db.Decimal(10, 2)
-  splitPayment         Boolean     @default(false)
-  stato                String      @default("EMESSA")
-  tipo                 String      @default("TOTALE")
-  motivo               String?
-  righe                Json?       @default("[]")
-  pdfPath              String?
-  xmlPath              String?
-  progressivoInvio     String?
-  note                 String?
-  createdAt            DateTime    @default(now())
-  updatedAt            DateTime    @updatedAt
-  committente          Committente @relation(fields: [committenteId], references: [id])
-  fatturaRiferimento   Fattura     @relation(fields: [fatturaRiferimentoId], references: [id])
-
-  @@unique([anno, progressivo])
-}
-
-model ProgressivoFattura {
-  id           String   @id @default(cuid())
-  anno         Int
-  tipo         String   @default("FATTURA")
-  ultimoNumero Int      @default(0)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-
-  @@unique([anno, tipo])
-}
-
-model RichiestaAgibilita {
-  id                  String                  @id @default(cuid())
-  codice              String                  @unique
-  stato               StatoRichiestaAgibilita @default(NUOVA)
-  richiedente         String
-  emailRichiedente    String?
-  telefonoRichiedente String?
-  datiRichiesta       Json?
-  note                String?
-  noteInterne         String?
-  agibilitaId         String?
-  assegnatoA          String?
-  createdAt           DateTime                @default(now())
-  updatedAt           DateTime                @updatedAt
-  Agibilita           Agibilita?              @relation(fields: [agibilitaId], references: [id])
-  User                User?                   @relation(fields: [assegnatoA], references: [id])
-
-  @@index([stato])
-  @@index([assegnatoA])
-  @@index([emailRichiedente])
-}
-
-model PrestazioneOccasionale {
-  id                     String                    @id @default(cuid())
-  numero                 Int
-  anno                   Int
-  codice                 String                    @unique
-  artistaId              String
-  batchId                String?
-  agibilitaIncluse       Json
-  compensoLordoOriginale Decimal                   @db.Decimal(10, 2)
-  compensoNettoOriginale Decimal                   @db.Decimal(10, 2)
-  ritenutaOriginale      Decimal                   @db.Decimal(10, 2)
-  rimborsoSpese          Decimal?                  @db.Decimal(10, 2)
-  rimborsoSpesePath      String?
-  compensoLordo          Decimal                   @db.Decimal(10, 2)
-  compensoNetto          Decimal                   @db.Decimal(10, 2)
-  ritenuta               Decimal                   @db.Decimal(10, 2)
-  scontoAnticipo         Decimal                   @default(0) @db.Decimal(10, 2)
-  totalePagato           Decimal                   @db.Decimal(10, 2)
-  stato                  StatoPrestazione          @default(DA_GENERARE)
-  tipoPagamento          TipoPagamentoPrestazione?
-  dataEmissione          DateTime?
-  dataInvioLink          DateTime?
-  dataSollecito          DateTime?
-  dataFirma              DateTime?
-  dataScadenzaLink       DateTime?
-  dataScadenzaPagamento  DateTime?
-  dataPagamento          DateTime?
-  tokenFirma             String?                   @unique
-  tokenScadenza          DateTime?
-  firmaNome              String?
-  firmaCognome           String?
-  firmaIP                String?
-  firmaUserAgent         String?
-  firmaAccettazione      Boolean                   @default(false)
-  causaleBonifico        String?
-  distinaId              String?
-  distinaGenerataAt      DateTime?
-  pdfPath                String?
-  errore                 String?
-  note                   String?
-  createdAt              DateTime                  @default(now())
-  updatedAt              DateTime                  @updatedAt
-  artista                Artista                   @relation(fields: [artistaId], references: [id])
-  Batch                  BatchPagamento?           @relation(fields: [batchId], references: [id])
-
-  @@unique([artistaId, anno, numero])
-  @@index([stato])
-  @@index([artistaId])
-  @@index([tokenFirma])
-  @@index([dataScadenzaPagamento])
-}
-
-model ProgressivoRicevuta {
-  id           String @id @default(cuid())
-  artistaId    String
-  anno         Int
-  ultimoNumero Int    @default(0)
-
-  @@unique([artistaId, anno])
-}
-
-model FatturaArtista {
-  id                String              @id @default(cuid())
-  artistaId         String
-  anno              Int
-  mese              Int
-  agibilitaIncluse  Json
-  importoTotale     Decimal             @db.Decimal(10, 2)
-  numeroFattura     String?
-  dataFattura       DateTime?
-  fatturaPath       String?
-  stato             StatoFatturaArtista @default(ATTESA_FATTURA)
-  dataRicezione     DateTime?
-  dataScadenza      DateTime?
-  dataPagamento     DateTime?
-  distinaId         String?
-  distinaGenerataAt DateTime?
-  causaleBonifico   String?
-  note              String?
-  createdAt         DateTime            @default(now())
-  updatedAt         DateTime            @updatedAt
-  artista           Artista             @relation("FattureArtista", fields: [artistaId], references: [id])
-
-  @@unique([artistaId, anno, mese])
-  @@index([stato])
-  @@index([artistaId])
-}
-
-model PresenzaMensile {
-  id                 String               @id @default(cuid())
-  artistaId          String
-  anno               Int
-  mese               Int
-  tipoContratto      TipoContratto
-  giorniLavorati     Json
-  totaleGiorni       Int                  @default(0)
-  totaleOre          Decimal              @default(0) @db.Decimal(10, 2)
-  importoOrario      Decimal?             @db.Decimal(10, 2)
-  importoGiornaliero Decimal?             @db.Decimal(10, 2)
-  importoTotale      Decimal              @default(0) @db.Decimal(10, 2)
-  stato              StatoPresenzaMensile @default(IN_CORSO)
-  dataConferma       DateTime?
-  confermatoDa       String?
-  bustaPagaRef       String?
-  dataElaborazione   DateTime?
-  note               String?
-  createdAt          DateTime             @default(now())
-  updatedAt          DateTime             @updatedAt
-  artista            Artista              @relation("PresenzeArtista", fields: [artistaId], references: [id])
-
-  @@unique([artistaId, anno, mese])
-  @@index([stato])
-  @@index([artistaId])
-}
-
-model Impostazioni {
-  id          String   @id @default(cuid())
-  chiave      String   @unique
-  valore      String
-  descrizione String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  @@index([chiave])
-}
-
-model Documento {
-  id               String             @id @default(cuid())
-  nome             String
-  nomeVisualizzato String?
-  descrizione      String?
-  path             String
-  mimeType         String?
-  dimensione       Int?
-  estensione       String?
-  categoria        CategoriaDocumento @default(ALTRO)
-  tags             String?
-  artistaId        String?
-  committenteId    String?
-  localeId         String?
-  agibilitaId      String?
-  createdAt        DateTime           @default(now())
-  updatedAt        DateTime           @updatedAt
-  createdBy        String?
-  agibilita        Agibilita?         @relation("DocumentiArchivio", fields: [agibilitaId], references: [id])
-  artista          Artista?           @relation("DocumentiArchivio", fields: [artistaId], references: [id])
-  committente      Committente?       @relation("DocumentiArchivio", fields: [committenteId], references: [id])
-  locale           Locale?            @relation("DocumentiArchivio", fields: [localeId], references: [id])
-
-  @@index([categoria])
-  @@index([artistaId])
-  @@index([committenteId])
-  @@index([agibilitaId])
-  @@index([createdAt])
-}
-
-model QualificaConfig {
-  id         String   @id @default(cuid())
-  nome       String   @unique
-  codiceInps String
-  sinonimi   String?
-  attivo     Boolean  @default(true)
-  ordine     Int      @default(0)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-
-  @@index([attivo])
-  @@index([ordine])
-}
-
-model User {
-  id                                             String               @id @default(cuid())
-  email                                          String               @unique
-  password                                       String
-  nome                                           String
-  cognome                                        String
-  telefono                                       String?
-  attivo                                         Boolean              @default(true)
-  stato                                          StatoUtente          @default(ATTIVO)
-  emailVerificata                                Boolean              @default(true)
-  emailVerificataAt                              DateTime?
-  tokenVerifica                                  String?              @unique
-  tokenVerificaExp                               DateTime?
-  createdAt                                      DateTime             @default(now())
-  updatedAt                                      DateTime             @updatedAt
-  lastLoginAt                                    DateTime?
-  sessionId                                      String?
-  workstationId                                  String?
-  ruolo                                          RuoloUtente          @default(OPERATORE)
-  BozzaAgibilita_BozzaAgibilita_creatoDaIdToUser BozzaAgibilita[]     @relation("BozzaAgibilita_creatoDaIdToUser")
-  BozzaAgibilita_BozzaAgibilita_lockedByIdToUser BozzaAgibilita[]     @relation("BozzaAgibilita_lockedByIdToUser")
-  Notifica                                       Notifica[]
-  permessiCustom                                 PermessoUtente[]
-  RichiestaAgibilita                             RichiestaAgibilita[]
-  formatGestiti                                  UserFormat[]
-
-  @@index([email])
-  @@index([ruolo])
-  @@index([stato])
-}
-
-model PasswordResetToken {
-  id        String   @id @default(cuid())
-  email     String
-  token     String   @unique
-  expires   DateTime
-  createdAt DateTime @default(now())
-
-  @@unique([email, token])
-  @@index([email])
-  @@index([expires])
-}
-
-model BatchPagamento {
-  id                        String                   @id
-  codice                    String                   @unique
-  anno                      Int
-  periodo                   Int
-  mese                      Int
-  dataInizio                DateTime
-  dataFine                  DateTime
-  dataGenerazione           DateTime?
-  stato                     String                   @default("PRONTO")
-  totalePrestazioniGenerate Int                      @default(0)
-  totaleImporto             Decimal                  @default(0) @db.Decimal(12, 2)
-  createdAt                 DateTime                 @default(now())
-  updatedAt                 DateTime
-  PrestazioneOccasionale    PrestazioneOccasionale[]
-
-  @@unique([anno, mese, periodo])
-  @@index([stato])
-}
-
-model BozzaAgibilita {
-  id                                   String     @id
-  codicePrenotato                      String?
-  prenotazioneId                       String?
-  datiArtisti                          Json?
-  datiLocale                           Json?
-  datiCommittente                      Json?
-  datiPrestazione                      Json?
-  datiEconomici                        Json?
-  stato                                StatoBozza @default(IN_LAVORAZIONE)
-  percentualeCompletamento             Int        @default(0)
-  lockedById                           String?
-  lockedByName                         String?
-  lockedAt                             DateTime?
-  lockScadeAt                          DateTime?
-  creatoDaId                           String?
-  createdAt                            DateTime   @default(now())
-  updatedAt                            DateTime
-  User_BozzaAgibilita_creatoDaIdToUser User?      @relation("BozzaAgibilita_creatoDaIdToUser", fields: [creatoDaId], references: [id])
-  User_BozzaAgibilita_lockedByIdToUser User?      @relation("BozzaAgibilita_lockedByIdToUser", fields: [lockedById], references: [id])
-
-  @@index([creatoDaId])
-  @@index([lockScadeAt])
-  @@index([stato])
-}
-
-model PrenotazioneNumero {
-  id          String   @id
-  anno        Int
-  progressivo Int
-  codice      String   @unique
-  confermato  Boolean  @default(false)
-  agibilitaId String?
-  scadeAt     DateTime
-  userId      String?
-  sessionId   String?
-  createdAt   DateTime @default(now())
-
-  @@unique([anno, progressivo])
-  @@index([confermato])
-  @@index([scadeAt])
-}
-
-model Format {
-  id               String              @id @default(cuid())
-  nome             String              @unique
-  descrizione      String?
-  tipoFatturazione TipoFatturazione    @default(COMMITTENTE)
-  attivo           Boolean             @default(true)
-  createdAt        DateTime            @default(now())
-  updatedAt        DateTime            @updatedAt
-  agibilita        Agibilita[]
-  committenti      FormatCommittente[]
-  utentiAbilitati  UserFormat[]
-
-  @@index([nome])
-  @@index([attivo])
-}
-
-model Permesso {
-  id          String           @id @default(cuid())
-  codice      String           @unique
-  nome        String
-  descrizione String?
-  modulo      String
-  azione      String
-  attivo      Boolean          @default(true)
-  createdAt   DateTime         @default(now())
-  ruoli       PermessoRuolo[]
-  utenti      PermessoUtente[]
-
-  @@index([modulo])
-  @@index([codice])
-}
-
-model PermessoRuolo {
-  id         String      @id @default(cuid())
-  ruolo      RuoloUtente
-  permessoId String
-  createdAt  DateTime    @default(now())
-  permesso   Permesso    @relation(fields: [permessoId], references: [id], onDelete: Cascade)
-
-  @@unique([ruolo, permessoId])
-  @@index([ruolo])
-}
-
-model PermessoUtente {
-  id         String   @id @default(cuid())
-  userId     String
-  permessoId String
-  concesso   Boolean  @default(true)
-  createdAt  DateTime @default(now())
-  permesso   Permesso @relation(fields: [permessoId], references: [id], onDelete: Cascade)
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, permessoId])
-  @@index([userId])
-}
-
-model FormatCommittente {
-  id            String      @id @default(cuid())
-  formatId      String
-  committenteId String
-  ordine        Int         @default(0)
-  createdAt     DateTime    @default(now())
-  committente   Committente @relation(fields: [committenteId], references: [id], onDelete: Cascade)
-  format        Format      @relation(fields: [formatId], references: [id], onDelete: Cascade)
-
-  @@unique([formatId, committenteId])
-  @@index([formatId])
-  @@index([committenteId])
-}
-
-model UserFormat {
-  id        String   @id @default(cuid())
-  userId    String
-  formatId  String
-  createdAt DateTime @default(now())
-  format    Format   @relation(fields: [formatId], references: [id], onDelete: Cascade)
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, formatId])
-  @@index([userId])
-  @@index([formatId])
-}
-
-model MovimentoBancario {
-  id                 String    @id @default(dbgenerated("gen_random_uuid()"))
-  data               DateTime  @db.Timestamp(6)
-  dataValuta         DateTime  @db.Timestamp(6)
-  descrizione        String
-  importo            Decimal   @db.Decimal(10, 2)
-  tipo               String    @default("ENTRATA")
-  stato              String    @default("DA_RICONCILIARE")
-  riferimentoInterno String?
-  fatturaId          String?
-  pagamentoId        String?
-  note               String?
-  createdAt          DateTime? @default(now()) @db.Timestamp(6)
-  updatedAt          DateTime? @default(now()) @db.Timestamp(6)
-  categoria          String?
-  Fattura            Fattura?  @relation(fields: [fatturaId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-}
+// ============================================
+// ENUMS - ESISTENTI
+// ============================================
 
 enum StatoUtente {
   PENDING
@@ -902,4 +180,1598 @@ enum CategoriaDocumento {
 enum TipoFatturazione {
   COMMITTENTE
   EVERYONE
+}
+
+// ============================================
+// ENUMS - NUOVI (EVENTO/PRODUZIONE/MAGAZZINO/STAFF)
+// ============================================
+
+enum TipoEvento {
+  CONCERTO
+  FESTIVAL
+  CLUB
+  APERITIVO
+  MATRIMONIO
+  CORPORATE
+  PIAZZA
+  PRIVATO
+  FORMAT
+  ALTRO
+}
+
+enum StatoEvento {
+  PREVENTIVO
+  PREVENTIVO_INVIATO
+  CONFERMATO
+  IN_PRODUZIONE
+  PRONTO
+  IN_CORSO
+  COMPLETATO
+  CHIUSO
+  ANNULLATO
+  SOSPESO
+}
+
+enum TipoDocumentoEvento {
+  PERMESSO_SUOLO_PUBBLICO
+  NULLA_OSTA_PREFETTURA
+  PIANO_EMERGENZA
+  CONFORMITA_IMPIANTI
+  CONFORMITA_PALCO
+  SIAE
+  ASSICURAZIONE
+  ALTRO
+}
+
+enum StatoDocumentoEvento {
+  MANCANTE
+  IN_ATTESA
+  CARICATO
+  APPROVATO
+  SCADUTO
+}
+
+enum StatoPreventivo {
+  BOZZA
+  INVIATO
+  VISIONATO
+  ACCETTATO
+  RIFIUTATO
+  SCADUTO
+  REVISIONATO
+}
+
+enum CategoriaVocePreventivo {
+  TECNICA_AUDIO
+  TECNICA_LUCI
+  TECNICA_VIDEO
+  TECNICA_STRUTTURE
+  PERSONALE
+  ARTISTI
+  LOGISTICA
+  NOLEGGI
+  FORMAT
+  ALTRO
+}
+
+enum TipoVoceEconomica {
+  RICAVO
+  COSTO
+}
+
+enum RuoloStaffEvento {
+  FONICO
+  TECNICO_LUCI
+  TECNICO_VIDEO
+  TECNICO_LED
+  RIGGER
+  STAGEHAND
+  DJ_TECH
+  DRIVER
+  RUNNER
+  RESPONSABILE_TECNICO
+  ALTRO
+}
+
+enum FaseLavoro {
+  MONTAGGIO
+  ESIBIZIONE
+  SMONTAGGIO
+  TUTTO
+}
+
+enum TipoCompensoStaff {
+  GETTONE
+  ORARIO
+}
+
+enum StatoAssegnazioneStaff {
+  PROPOSTO
+  CONFERMATO
+  NOTIFICATO
+  ACCETTATO
+  RIFIUTATO
+  SOSTITUITO
+}
+
+enum StatoMaterialeEvento {
+  RICHIESTO
+  CONFERMATO
+  PREPARATO
+  USCITO
+  RIENTRATO
+  DANNEGGIATO
+}
+
+enum CategoriaMateriale {
+  AUDIO
+  LUCI
+  VIDEO
+  LED
+  STRUTTURE
+  BACKLINE
+  ELETTRICO
+  TRASPORTO
+  CONSUMABILE
+  ALTRO
+}
+
+enum StatoMateriale {
+  DISPONIBILE
+  IN_USO
+  MANUTENZIONE
+  DANNEGGIATO
+  DISMESSO
+}
+
+enum TipoMovimentoMagazzino {
+  CARICO
+  SCARICO
+  RESO
+  MANUTENZIONE
+  PERDITA
+  TRASFERIMENTO
+  USCITA_EVENTO
+  RIENTRO_EVENTO
+}
+
+enum TipoCollaboratore {
+  INTERNO
+  ESTERNO
+  OCCASIONALE
+  PARTITA_IVA
+}
+
+// ============================================
+// ARTISTA
+// ============================================
+
+model Artista {
+  id                   String                   @id @default(cuid())
+  nome                 String
+  cognome              String
+  nomeDarte            String?
+  codiceFiscale        String?                  @unique
+  partitaIva           String?
+  email                String?
+  telefono             String?
+  telefonoSecondario   String?
+  indirizzo            String?
+  cap                  String?
+  citta                String?
+  provincia            String?
+  dataNascita          DateTime?
+  comuneNascita        String?
+  provinciaNascita     String?
+  cachetBase           Decimal?                 @db.Decimal(10, 2)
+  iban                 String?
+  tipoPagamento        TipoPagamentoArtista     @default(STANDARD_15GG)
+  note                 String?
+  noteInterne          String?
+  createdAt            DateTime                 @default(now())
+  updatedAt            DateTime                 @updatedAt
+  codiceFiscaleEstero  String?
+  iscritto             Boolean                  @default(false)
+  matricolaEnpals      String?
+  nazionalita          String                   @default("IT")
+  tipoContratto        TipoContratto            @default(PRESTAZIONE_OCCASIONALE)
+  extraUE              Boolean                  @default(false)
+  maggiorenne          Boolean                  @default(true)
+  numeroDocumento      String?
+  scadenzaDocumento    DateTime?
+  sesso                String?
+  tipoDocumento        TipoDocumento?
+  bic                  String?
+  codiceCommercialista String?                  @unique
+  qualifica            String                   @default("Altro")
+  
+  agibilita            ArtistaAgibilita[]
+  documentiArchivio    Documento[]              @relation("DocumentiArchivio")
+  documenti            DocumentoArtista[]
+  fattureRicevute      FatturaArtista[]         @relation("FattureArtista")
+  presenzeMensili      PresenzaMensile[]        @relation("PresenzeArtista")
+  prestazioni          PrestazioneOccasionale[]
+  assegnazioniEvento   AssegnazioneArtista[]
+
+  @@index([cognome, nome])
+  @@index([nomeDarte])
+  @@index([iscritto])
+}
+
+// ============================================
+// DOCUMENTO ARTISTA
+// ============================================
+
+model DocumentoArtista {
+  id         String        @id @default(cuid())
+  artistaId  String
+  tipo       TipoDocumento
+  nome       String
+  path       String
+  mimeType   String?
+  dimensione Int?
+  createdAt  DateTime      @default(now())
+  artista    Artista       @relation(fields: [artistaId], references: [id], onDelete: Cascade)
+
+  @@index([artistaId])
+}
+
+// ============================================
+// LOCALE
+// ============================================
+
+model Locale {
+  id                   String       @id @default(cuid())
+  nome                 String
+  referenteNome        String?
+  referenteTelefono    String?
+  referenteEmail       String?
+  note                 String?
+  noteInterne          String?
+  createdAt            DateTime     @default(now())
+  updatedAt            DateTime     @updatedAt
+  cap                  String?
+  citta                String?
+  codiceBelfiore       String?
+  committenteDefaultId String?
+  indirizzo            String?
+  provincia            String?
+  tipoLocale           TipoLocale   @default(ALTRO)
+  
+  agibilita            Agibilita[]
+  documentiArchivio    Documento[]  @relation("DocumentiArchivio")
+  committenteDefault   Committente? @relation("LocaleCommittenteDefault", fields: [committenteDefaultId], references: [id])
+  eventi               Evento[]
+
+  @@index([nome])
+  @@index([citta])
+}
+
+// ============================================
+// COMMITTENTE
+// ============================================
+
+model Committente {
+  id                        String              @id @default(cuid())
+  ragioneSociale            String
+  partitaIva                String?
+  codiceFiscale             String?
+  email                     String?
+  pec                       String?
+  telefono                  String?
+  codiceSDI                 String              @default("0000000")
+  indirizzoFatturazione     String?
+  capFatturazione           String?
+  cittaFatturazione         String?
+  provinciaFatturazione     String?
+  quotaAgenzia              Decimal             @default(0) @db.Decimal(10, 2)
+  giorniPagamento           Int                 @default(30)
+  iban                      String?
+  modalitaFatturazione      String?             @default("DETTAGLIO_SPESE_INCLUSE")
+  tipoPagamento             String?             @default("BONIFICO_30GG")
+  aRischio                  Boolean             @default(false)
+  note                      String?
+  noteInterne               String?
+  createdAt                 DateTime            @default(now())
+  updatedAt                 DateTime            @updatedAt
+  
+  isPubblicaAmministrazione Boolean             @default(false)
+  splitPayment              Boolean             @default(false)
+  scadenzaPagamentoId       String?
+  timingFatturazione        String?             @default("SETTIMANALE")
+  
+  agibilita                 Agibilita[]
+  documentiArchivio         Documento[]         @relation("DocumentiArchivio")
+  fatture                   Fattura[]
+  localiDefault             Locale[]            @relation("LocaleCommittenteDefault")
+  formats                   FormatCommittente[]
+  scadenzaPagamento         ScadenzaPagamento?  @relation(fields: [scadenzaPagamentoId], references: [id])
+  noteDiCredito             NotaDiCredito[]
+  eventi                    Evento[]
+
+  @@index([ragioneSociale])
+  @@index([aRischio])
+}
+
+// ============================================
+// AGIBILITA
+// ============================================
+
+model Agibilita {
+  id                            String                @id @default(cuid())
+  stato                         StatoAgibilita        @default(BOZZA)
+  xmlPath                       String?
+  xmlGeneratoAt                 DateTime?
+  ricevutaINPSPath              String?
+  ricevutaCaricataAt            DateTime?
+  inviatoLocale                 Boolean               @default(false)
+  inviatoLocaleAt               DateTime?
+  note                          String?
+  errore                        String?
+  createdAt                     DateTime              @default(now())
+  updatedAt                     DateTime              @updatedAt
+  bozzaOriginaleId              String?
+  codice                        String                @unique
+  committenteId                 String?
+  data                          DateTime
+  fatturaId                     String?
+  importoFattura                Decimal               @default(0) @db.Decimal(10, 2)
+  inviatoCommittente            Boolean               @default(false)
+  inviatoCommittenteAt          DateTime?
+  localeId                      String
+  luogoPrestazione              String?
+  noteInterne                   String?
+  quotaAgenzia                  Decimal               @default(0) @db.Decimal(10, 2)
+  richiedente                   Richiedente           @default(COMMITTENTE)
+  statoFattura                  StatoFatturaAgibilita @default(DA_FATTURARE)
+  dataFine                      DateTime?
+  totaleCompensiLordi           Decimal               @default(0) @db.Decimal(10, 2)
+  totaleCompensiNetti           Decimal               @default(0) @db.Decimal(10, 2)
+  totaleRitenute                Decimal               @default(0) @db.Decimal(10, 2)
+  erroreINPS                    String?
+  esitoINPS                     String?
+  hashINPS                      String?
+  identificativoINPS            Int?
+  identificativoOccupazioneINPS Int?
+  identificativoPeriodoINPS     Int?
+  inviatoINPSAt                 DateTime?
+  rispostaINPSAt                DateTime?
+  estera                        Boolean               @default(false)
+  paeseEstero                   String?
+  formatId                      String?
+  
+  committente                   Committente?          @relation(fields: [committenteId], references: [id])
+  fattura                       Fattura?              @relation(fields: [fatturaId], references: [id])
+  locale                        Locale                @relation(fields: [localeId], references: [id])
+  format                        Format?               @relation(fields: [formatId], references: [id])
+  artisti                       ArtistaAgibilita[]
+  documentiArchivio             Documento[]           @relation("DocumentiArchivio")
+  RichiestaAgibilita            RichiestaAgibilita[]
+  assegnazioniArtista           AssegnazioneArtista[]
+
+  @@index([data])
+  @@index([stato])
+  @@index([localeId])
+  @@index([committenteId])
+  @@index([statoFattura])
+  @@index([formatId])
+}
+
+// ============================================
+// ARTISTA-AGIBILITA
+// ============================================
+
+model ArtistaAgibilita {
+  id                           String                @id @default(cuid())
+  agibilitaId                  String
+  artistaId                    String
+  compensoNetto                Decimal               @db.Decimal(10, 2)
+  compensoLordo                Decimal               @db.Decimal(10, 2)
+  ritenuta                     Decimal               @db.Decimal(10, 2)
+  statoPagamento               StatoPagamentoArtista @default(DA_PAGARE)
+  scadenzaPagamento            DateTime?
+  dataPagamento                DateTime?
+  metodoPagamento              String?
+  inviatoArtista               Boolean               @default(false)
+  inviatoArtistaAt             DateTime?
+  pdfArtistaPath               String?
+  createdAt                    DateTime              @default(now())
+  identificativoLavoratoreINPS Int?
+  dataFine                     DateTime?
+  dataInizio                   DateTime?
+  qualifica                    String?
+  
+  agibilita                    Agibilita             @relation(fields: [agibilitaId], references: [id], onDelete: Cascade)
+  artista                      Artista               @relation(fields: [artistaId], references: [id])
+
+  @@unique([agibilitaId, artistaId])
+  @@index([agibilitaId])
+  @@index([artistaId])
+  @@index([statoPagamento])
+}
+
+// ============================================
+// NOTIFICA
+// ============================================
+
+model Notifica {
+  id             String       @id @default(cuid())
+  tipo           TipoNotifica
+  titolo         String
+  messaggio      String
+  agibilitaId    String?
+  artistaId      String?
+  committenteId  String?
+  link           String?
+  destinatarioId String?
+  letto          Boolean      @default(false)
+  lettoAt        DateTime?
+  createdAt      DateTime     @default(now())
+  User           User?        @relation(fields: [destinatarioId], references: [id])
+
+  @@index([tipo])
+  @@index([destinatarioId, letto])
+}
+
+// ============================================
+// FATTURA
+// ============================================
+
+model Fattura {
+  id                  String             @id @default(cuid())
+  numero              String             @unique
+  anno                Int
+  progressivo         Int
+  committenteId       String
+  dataEmissione       DateTime
+  dataScadenza        DateTime?
+  imponibile          Decimal            @db.Decimal(10, 2)
+  iva                 Decimal            @db.Decimal(10, 2)
+  totale              Decimal            @db.Decimal(10, 2)
+  stato               StatoFattura       @default(BOZZA)
+  pdfPath             String?
+  xmlPath             String?
+  dataPagamento       DateTime?
+  note                String?
+  tipoPagamento       String             @default("BONIFICO_VISTA")
+  dataEsportazione    DateTime?
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+  
+  modalitaRighe       String?            @default("DETTAGLIO_SPESE_INCLUSE")
+  descrizioneGenerica String?
+  aliquotaIva         Int                @default(22)
+  splitPayment        Boolean            @default(false)
+  righeFattura        Json?
+  causale             String?
+  progressivoInvio    String?
+  scadenzaPagamentoId String?
+  
+  agibilita           Agibilita[]
+  committente         Committente        @relation(fields: [committenteId], references: [id])
+  scadenzaPagamento   ScadenzaPagamento? @relation(fields: [scadenzaPagamentoId], references: [id])
+  noteDiCredito       NotaDiCredito[]
+  MovimentoBancario   MovimentoBancario[]
+
+  @@unique([anno, progressivo])
+  @@index([stato])
+  @@index([committenteId])
+}
+
+// ============================================
+// SCADENZA PAGAMENTO
+// ============================================
+
+model ScadenzaPagamento {
+  id          String        @id @default(cuid())
+  nome        String
+  codice      String        @unique
+  giorni      Int           @default(0)
+  fineMese    Boolean       @default(false)
+  descrizione String?
+  attivo      Boolean       @default(true)
+  ordine      Int           @default(0)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  
+  committenti Committente[]
+  fatture     Fattura[]
+}
+
+// ============================================
+// NOTA DI CREDITO
+// ============================================
+
+model NotaDiCredito {
+  id                   String      @id @default(cuid())
+  numero               String      @unique
+  anno                 Int
+  progressivo          Int
+  fatturaRiferimentoId String
+  committenteId        String
+  dataEmissione        DateTime    @default(now())
+  imponibile           Decimal     @db.Decimal(10, 2)
+  aliquotaIva          Int         @default(22)
+  iva                  Decimal     @db.Decimal(10, 2)
+  totale               Decimal     @db.Decimal(10, 2)
+  splitPayment         Boolean     @default(false)
+  stato                String      @default("EMESSA")
+  tipo                 String      @default("TOTALE")
+  motivo               String?
+  righe                Json?       @default("[]")
+  pdfPath              String?
+  xmlPath              String?
+  progressivoInvio     String?
+  note                 String?
+  createdAt            DateTime    @default(now())
+  updatedAt            DateTime    @updatedAt
+  
+  fatturaRiferimento   Fattura     @relation(fields: [fatturaRiferimentoId], references: [id])
+  committente          Committente @relation(fields: [committenteId], references: [id])
+
+  @@unique([anno, progressivo])
+}
+
+// ============================================
+// PROGRESSIVO FATTURA
+// ============================================
+
+model ProgressivoFattura {
+  id           String   @id @default(cuid())
+  anno         Int
+  tipo         String   @default("FATTURA")
+  ultimoNumero Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([anno, tipo])
+}
+
+// ============================================
+// RICHIESTA AGIBILITA
+// ============================================
+
+model RichiestaAgibilita {
+  id                  String                  @id @default(cuid())
+  codice              String                  @unique
+  stato               StatoRichiestaAgibilita @default(NUOVA)
+  richiedente         String
+  emailRichiedente    String?
+  telefonoRichiedente String?
+  datiRichiesta       Json?
+  note                String?
+  noteInterne         String?
+  agibilitaId         String?
+  assegnatoA          String?
+  createdAt           DateTime                @default(now())
+  updatedAt           DateTime                @updatedAt
+  
+  Agibilita           Agibilita?              @relation(fields: [agibilitaId], references: [id])
+  User                User?                   @relation(fields: [assegnatoA], references: [id])
+
+  @@index([stato])
+  @@index([assegnatoA])
+  @@index([emailRichiedente])
+}
+
+// ============================================
+// PRESTAZIONE OCCASIONALE
+// ============================================
+
+model PrestazioneOccasionale {
+  id                     String                    @id @default(cuid())
+  numero                 Int
+  anno                   Int
+  codice                 String                    @unique
+  artistaId              String
+  batchId                String?
+  agibilitaIncluse       Json
+  compensoLordoOriginale Decimal                   @db.Decimal(10, 2)
+  compensoNettoOriginale Decimal                   @db.Decimal(10, 2)
+  ritenutaOriginale      Decimal                   @db.Decimal(10, 2)
+  rimborsoSpese          Decimal?                  @db.Decimal(10, 2)
+  rimborsoSpesePath      String?
+  compensoLordo          Decimal                   @db.Decimal(10, 2)
+  compensoNetto          Decimal                   @db.Decimal(10, 2)
+  ritenuta               Decimal                   @db.Decimal(10, 2)
+  scontoAnticipo         Decimal                   @default(0) @db.Decimal(10, 2)
+  totalePagato           Decimal                   @db.Decimal(10, 2)
+  stato                  StatoPrestazione          @default(DA_GENERARE)
+  tipoPagamento          TipoPagamentoPrestazione?
+  dataEmissione          DateTime?
+  dataInvioLink          DateTime?
+  dataSollecito          DateTime?
+  dataFirma              DateTime?
+  dataScadenzaLink       DateTime?
+  dataScadenzaPagamento  DateTime?
+  dataPagamento          DateTime?
+  tokenFirma             String?                   @unique
+  tokenScadenza          DateTime?
+  firmaNome              String?
+  firmaCognome           String?
+  firmaIP                String?
+  firmaUserAgent         String?
+  firmaAccettazione      Boolean                   @default(false)
+  causaleBonifico        String?
+  distinaId              String?
+  distinaGenerataAt      DateTime?
+  pdfPath                String?
+  errore                 String?
+  note                   String?
+  createdAt              DateTime                  @default(now())
+  updatedAt              DateTime                  @updatedAt
+  
+  artista                Artista                   @relation(fields: [artistaId], references: [id])
+  Batch                  BatchPagamento?           @relation(fields: [batchId], references: [id])
+
+  @@unique([artistaId, anno, numero])
+  @@index([stato])
+  @@index([artistaId])
+  @@index([tokenFirma])
+  @@index([dataScadenzaPagamento])
+}
+
+// ============================================
+// PROGRESSIVO RICEVUTA
+// ============================================
+
+model ProgressivoRicevuta {
+  id           String @id @default(cuid())
+  artistaId    String
+  anno         Int
+  ultimoNumero Int    @default(0)
+
+  @@unique([artistaId, anno])
+}
+
+// ============================================
+// FATTURA ARTISTA
+// ============================================
+
+model FatturaArtista {
+  id                String              @id @default(cuid())
+  artistaId         String
+  anno              Int
+  mese              Int
+  agibilitaIncluse  Json
+  importoTotale     Decimal             @db.Decimal(10, 2)
+  numeroFattura     String?
+  dataFattura       DateTime?
+  fatturaPath       String?
+  stato             StatoFatturaArtista @default(ATTESA_FATTURA)
+  dataRicezione     DateTime?
+  dataScadenza      DateTime?
+  dataPagamento     DateTime?
+  distinaId         String?
+  distinaGenerataAt DateTime?
+  causaleBonifico   String?
+  note              String?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  
+  artista           Artista             @relation("FattureArtista", fields: [artistaId], references: [id])
+
+  @@unique([artistaId, anno, mese])
+  @@index([stato])
+  @@index([artistaId])
+}
+
+// ============================================
+// PRESENZA MENSILE
+// ============================================
+
+model PresenzaMensile {
+  id                 String               @id @default(cuid())
+  artistaId          String
+  anno               Int
+  mese               Int
+  tipoContratto      TipoContratto
+  giorniLavorati     Json
+  totaleGiorni       Int                  @default(0)
+  totaleOre          Decimal              @default(0) @db.Decimal(10, 2)
+  importoOrario      Decimal?             @db.Decimal(10, 2)
+  importoGiornaliero Decimal?             @db.Decimal(10, 2)
+  importoTotale      Decimal              @default(0) @db.Decimal(10, 2)
+  stato              StatoPresenzaMensile @default(IN_CORSO)
+  dataConferma       DateTime?
+  confermatoDa       String?
+  bustaPagaRef       String?
+  dataElaborazione   DateTime?
+  note               String?
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+  
+  artista            Artista              @relation("PresenzeArtista", fields: [artistaId], references: [id])
+
+  @@unique([artistaId, anno, mese])
+  @@index([stato])
+  @@index([artistaId])
+}
+
+// ============================================
+// IMPOSTAZIONI
+// ============================================
+
+model Impostazioni {
+  id          String   @id @default(cuid())
+  chiave      String   @unique
+  valore      String
+  descrizione String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([chiave])
+}
+
+// ============================================
+// DOCUMENTO
+// ============================================
+
+model Documento {
+  id               String             @id @default(cuid())
+  nome             String
+  nomeVisualizzato String?
+  descrizione      String?
+  path             String
+  mimeType         String?
+  dimensione       Int?
+  estensione       String?
+  categoria        CategoriaDocumento @default(ALTRO)
+  tags             String?
+  artistaId        String?
+  committenteId    String?
+  localeId         String?
+  agibilitaId      String?
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  createdBy        String?
+  
+  agibilita        Agibilita?         @relation("DocumentiArchivio", fields: [agibilitaId], references: [id])
+  artista          Artista?           @relation("DocumentiArchivio", fields: [artistaId], references: [id])
+  committente      Committente?       @relation("DocumentiArchivio", fields: [committenteId], references: [id])
+  locale           Locale?            @relation("DocumentiArchivio", fields: [localeId], references: [id])
+
+  @@index([categoria])
+  @@index([artistaId])
+  @@index([committenteId])
+  @@index([agibilitaId])
+  @@index([createdAt])
+}
+
+// ============================================
+// QUALIFICA CONFIG
+// ============================================
+
+model QualificaConfig {
+  id         String   @id @default(cuid())
+  nome       String   @unique
+  codiceInps String
+  sinonimi   String?
+  attivo     Boolean  @default(true)
+  ordine     Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([attivo])
+  @@index([ordine])
+}
+
+// ============================================
+// USER
+// ============================================
+
+model User {
+  id                                             String               @id @default(cuid())
+  email                                          String               @unique
+  password                                       String
+  nome                                           String
+  cognome                                        String
+  telefono                                       String?
+  attivo                                         Boolean              @default(true)
+  permessiCustom                                 PermessoUtente[]
+  
+  stato                                          StatoUtente          @default(ATTIVO)
+  emailVerificata                                Boolean              @default(true)
+  emailVerificataAt                              DateTime?
+  tokenVerifica                                  String?              @unique
+  tokenVerificaExp                               DateTime?
+ 
+  createdAt                                      DateTime             @default(now())
+  updatedAt                                      DateTime             @updatedAt
+  lastLoginAt                                    DateTime?
+  sessionId                                      String?
+  workstationId                                  String?
+  ruolo                                          RuoloUtente          @default(OPERATORE)
+  
+  BozzaAgibilita_BozzaAgibilita_creatoDaIdToUser BozzaAgibilita[]     @relation("BozzaAgibilita_creatoDaIdToUser")
+  BozzaAgibilita_BozzaAgibilita_lockedByIdToUser BozzaAgibilita[]     @relation("BozzaAgibilita_lockedByIdToUser")
+  Notifica                                       Notifica[]
+  RichiestaAgibilita                             RichiestaAgibilita[]
+  formatGestiti                                  UserFormat[]
+  eventiResponsabile                             Evento[]             @relation("EventoResponsabile")
+
+  @@index([email])
+  @@index([ruolo])
+  @@index([stato])
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  email     String
+  token     String   @unique
+  expires   DateTime
+  createdAt DateTime @default(now())
+
+  @@unique([email, token])
+  @@index([email])
+  @@index([expires])
+}
+
+// ============================================
+// BATCH PAGAMENTO
+// ============================================
+
+model BatchPagamento {
+  id                        String                   @id
+  codice                    String                   @unique
+  anno                      Int
+  periodo                   Int
+  mese                      Int
+  dataInizio                DateTime
+  dataFine                  DateTime
+  dataGenerazione           DateTime?
+  stato                     String                   @default("PRONTO")
+  totalePrestazioniGenerate Int                      @default(0)
+  totaleImporto             Decimal                  @default(0) @db.Decimal(12, 2)
+  createdAt                 DateTime                 @default(now())
+  updatedAt                 DateTime
+  
+  PrestazioneOccasionale    PrestazioneOccasionale[]
+
+  @@unique([anno, mese, periodo])
+  @@index([stato])
+}
+
+// ============================================
+// BOZZA AGIBILITA
+// ============================================
+
+model BozzaAgibilita {
+  id                                   String     @id
+  codicePrenotato                      String?
+  prenotazioneId                       String?
+  datiArtisti                          Json?
+  datiLocale                           Json?
+  datiCommittente                      Json?
+  datiPrestazione                      Json?
+  datiEconomici                        Json?
+  stato                                StatoBozza @default(IN_LAVORAZIONE)
+  percentualeCompletamento             Int        @default(0)
+  lockedById                           String?
+  lockedByName                         String?
+  lockedAt                             DateTime?
+  lockScadeAt                          DateTime?
+  creatoDaId                           String?
+  createdAt                            DateTime   @default(now())
+  updatedAt                            DateTime
+  
+  User_BozzaAgibilita_creatoDaIdToUser User?      @relation("BozzaAgibilita_creatoDaIdToUser", fields: [creatoDaId], references: [id])
+  User_BozzaAgibilita_lockedByIdToUser User?      @relation("BozzaAgibilita_lockedByIdToUser", fields: [lockedById], references: [id])
+
+  @@index([creatoDaId])
+  @@index([lockScadeAt])
+  @@index([stato])
+}
+
+// ============================================
+// PRENOTAZIONE NUMERO
+// ============================================
+
+model PrenotazioneNumero {
+  id          String   @id
+  anno        Int
+  progressivo Int
+  codice      String   @unique
+  confermato  Boolean  @default(false)
+  agibilitaId String?
+  scadeAt     DateTime
+  userId      String?
+  sessionId   String?
+  createdAt   DateTime @default(now())
+
+  @@unique([anno, progressivo])
+  @@index([confermato])
+  @@index([scadeAt])
+}
+
+// ============================================
+// FORMAT
+// ============================================
+
+model Format {
+  id                String              @id @default(cuid())
+  nome              String              @unique
+  descrizione       String?
+  tipoFatturazione  TipoFatturazione    @default(COMMITTENTE)
+  attivo            Boolean             @default(true)
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  
+  committenti       FormatCommittente[]
+  utentiAbilitati   UserFormat[]
+  agibilita         Agibilita[]
+  eventi            Evento[]
+
+  @@index([nome])
+  @@index([attivo])
+}
+
+// ============================================
+// PERMESSI
+// ============================================
+
+model Permesso {
+  id          String   @id @default(cuid())
+  codice      String   @unique
+  nome        String
+  descrizione String?
+  modulo      String
+  azione      String
+  attivo      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  
+  ruoli       PermessoRuolo[]
+  utenti      PermessoUtente[]
+
+  @@index([modulo])
+  @@index([codice])
+}
+
+model PermessoRuolo {
+  id          String      @id @default(cuid())
+  ruolo       RuoloUtente
+  permessoId  String
+  createdAt   DateTime    @default(now())
+  
+  permesso    Permesso    @relation(fields: [permessoId], references: [id], onDelete: Cascade)
+
+  @@unique([ruolo, permessoId])
+  @@index([ruolo])
+}
+
+model PermessoUtente {
+  id          String   @id @default(cuid())
+  userId      String
+  permessoId  String
+  concesso    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  permesso    Permesso @relation(fields: [permessoId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, permessoId])
+  @@index([userId])
+}
+
+// ============================================
+// FORMAT - COMMITTENTE (N:M)
+// ============================================
+
+model FormatCommittente {
+  id            String      @id @default(cuid())
+  formatId      String
+  committenteId String
+  ordine        Int         @default(0)
+  createdAt     DateTime    @default(now())
+  
+  format        Format      @relation(fields: [formatId], references: [id], onDelete: Cascade)
+  committente   Committente @relation(fields: [committenteId], references: [id], onDelete: Cascade)
+
+  @@unique([formatId, committenteId])
+  @@index([formatId])
+  @@index([committenteId])
+}
+
+// ============================================
+// USER - FORMAT (N:M)
+// ============================================
+
+model UserFormat {
+  id        String   @id @default(cuid())
+  userId    String
+  formatId  String
+  createdAt DateTime @default(now())
+  
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  format    Format   @relation(fields: [formatId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, formatId])
+  @@index([userId])
+  @@index([formatId])
+}
+
+// ============================================
+// ============================================
+// MODULO EVENTO / PRODUZIONE
+// ============================================
+// ============================================
+
+model Evento {
+  id                  String        @id @default(cuid())
+  codice              String        @unique
+  nome                String
+  descrizione         String?
+  
+  tipo                TipoEvento    @default(CONCERTO)
+  stato               StatoEvento   @default(PREVENTIVO)
+  
+  dataInizio          DateTime
+  dataFine            DateTime?
+  oraCarico           String?
+  oraInizioEvento     String?
+  oraFineEvento       String?
+  oraScarico          String?
+  
+  committenteId       String?
+  localeId            String?
+  formatId            String?
+  
+  // Luogo evento (se diverso da locale)
+  indirizzoEvento     String?
+  cittaEvento         String?
+  provinciaEvento     String?
+  
+  capienzaPrevista    Int?
+  capienzaEffettiva   Int?
+  
+  // Economico (sintesi)
+  ricavoPrevisto      Decimal?      @db.Decimal(10, 2)
+  ricavoEffettivo     Decimal?      @db.Decimal(10, 2)
+  costoPrevisto       Decimal?      @db.Decimal(10, 2)
+  costoEffettivo      Decimal?      @db.Decimal(10, 2)
+  marginePrevisto     Decimal?      @db.Decimal(10, 2)
+  margineEffettivo    Decimal?      @db.Decimal(10, 2)
+  
+  responsabileId      String?
+  
+  note                String?
+  noteInterne         String?
+  
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+  
+  // Relazioni
+  committente         Committente?  @relation(fields: [committenteId], references: [id])
+  locale              Locale?       @relation(fields: [localeId], references: [id])
+  format              Format?       @relation(fields: [formatId], references: [id])
+  responsabile        User?         @relation("EventoResponsabile", fields: [responsabileId], references: [id])
+  
+  dossier             DossierEvento?
+  preventivi          Preventivo[]
+  vociEconomiche      VoceEconomicaEvento[]
+  assegnazioniStaff   AssegnazioneStaff[]
+  assegnazioniArtisti AssegnazioneArtista[]
+  materialiEvento     MaterialeEvento[]
+  documentiEvento     DocumentoEvento[]
+
+  @@index([stato])
+  @@index([dataInizio])
+  @@index([committenteId])
+  @@index([localeId])
+  @@index([formatId])
+}
+
+// ============================================
+// DOSSIER EVENTO
+// ============================================
+
+model DossierEvento {
+  id                  String   @id @default(cuid())
+  eventoId            String   @unique
+  
+  // Briefing
+  briefing            String?
+  obiettivi           String?
+  targetPubblico      String?
+  
+  // Logistica location
+  accessoCarico       String?
+  parcheggio          String?
+  noteLocation        String?
+  
+  // Timeline (JSON array)
+  timeline            String?  // [{"ora": "08:00", "attivita": "Carico", "responsabile": "..."}]
+  
+  // Note tecniche
+  riderTecnico        String?
+  noteAudio           String?
+  noteLuci            String?
+  noteVideo           String?
+  universoDMX         String?
+  routingAudio        String?
+  configLEDWall       String?
+  schemiOperativi     String?  // JSON con schemi
+  
+  // Scaletta (JSON array)
+  scaletta            String?  // [{"ora": "22:00", "artista": "...", "durata": 60}]
+  
+  // Hospitality
+  catering            String?
+  alloggi             String?
+  trasporti           String?
+  
+  // Contatti evento (JSON array)
+  contattiEvento      String?  // [{"ruolo": "Responsabile venue", "nome": "...", "tel": "..."}]
+  
+  // Checklist (JSON array)
+  checklistPre        String?  // [{"item": "...", "fatto": false}]
+  checklistPost       String?
+  
+  // Media cliente
+  linkMediaCliente    String?
+  
+  note                String?
+  
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  
+  evento              Evento   @relation(fields: [eventoId], references: [id], onDelete: Cascade)
+}
+
+// ============================================
+// DOCUMENTI EVENTO (Sicurezza/Permessi)
+// ============================================
+
+model DocumentoEvento {
+  id                  String               @id @default(cuid())
+  eventoId            String
+  
+  tipo                TipoDocumentoEvento
+  nome                String?
+  descrizione         String?
+  
+  richiesto           Boolean              @default(false)
+  stato               StatoDocumentoEvento @default(MANCANTE)
+  
+  filePath            String?
+  dataCaricamento     DateTime?
+  dataScadenza        DateTime?
+  
+  note                String?
+  
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  
+  evento              Evento               @relation(fields: [eventoId], references: [id], onDelete: Cascade)
+
+  @@index([eventoId])
+  @@index([tipo])
+}
+
+// ============================================
+// PREVENTIVO
+// ============================================
+
+model Preventivo {
+  id                    String           @id @default(cuid())
+  numero                String           @unique
+  eventoId              String
+  
+  versione              Int              @default(1)
+  
+  dataEmissione         DateTime         @default(now())
+  dataValidita          DateTime?
+  stato                 StatoPreventivo  @default(BOZZA)
+  
+  totaleImponibile      Decimal          @db.Decimal(10, 2) @default(0)
+  totaleIva             Decimal          @db.Decimal(10, 2) @default(0)
+  totale                Decimal          @db.Decimal(10, 2) @default(0)
+  
+  condizioniTecniche    String?
+  condizioniCommerciali String?
+  condizioniPagamento   String?
+  noteCliente           String?
+  noteInterne           String?
+  
+  accettato             Boolean          @default(false)
+  dataAccettazione      DateTime?
+  firmaCliente          String?
+  
+  pdfPath               String?
+  
+  createdAt             DateTime         @default(now())
+  updatedAt             DateTime         @updatedAt
+  
+  evento                Evento           @relation(fields: [eventoId], references: [id], onDelete: Cascade)
+  voci                  VocePreventivo[]
+
+  @@index([eventoId])
+  @@index([stato])
+}
+
+model VocePreventivo {
+  id                  String                  @id @default(cuid())
+  preventivoId        String
+  
+  categoria           CategoriaVocePreventivo
+  descrizione         String
+  
+  quantita            Decimal                 @db.Decimal(10, 2) @default(1)
+  unitaMisura         String?
+  prezzoUnitario      Decimal                 @db.Decimal(10, 2)
+  sconto              Decimal                 @db.Decimal(5, 2) @default(0)
+  
+  imponibile          Decimal                 @db.Decimal(10, 2)
+  aliquotaIva         Decimal                 @db.Decimal(5, 2) @default(22)
+  iva                 Decimal                 @db.Decimal(10, 2)
+  totale              Decimal                 @db.Decimal(10, 2)
+  
+  ordine              Int                     @default(0)
+  
+  createdAt           DateTime                @default(now())
+  
+  preventivo          Preventivo              @relation(fields: [preventivoId], references: [id], onDelete: Cascade)
+
+  @@index([preventivoId])
+}
+
+// ============================================
+// VOCI ECONOMICHE EVENTO (Carrello)
+// ============================================
+
+model VoceEconomicaEvento {
+  id                  String             @id @default(cuid())
+  eventoId            String
+  
+  tipo                TipoVoceEconomica
+  categoria           String?
+  descrizione         String
+  
+  importoPrevisto     Decimal?           @db.Decimal(10, 2)
+  importoEffettivo    Decimal?           @db.Decimal(10, 2)
+  
+  fornitore           String?
+  
+  daFatturare         Boolean            @default(false)
+  fatturato           Boolean            @default(false)
+  pagato              Boolean            @default(false)
+  dataPagamento       DateTime?
+  
+  note                String?
+  
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+  
+  evento              Evento             @relation(fields: [eventoId], references: [id], onDelete: Cascade)
+
+  @@index([eventoId])
+  @@index([tipo])
+}
+
+// ============================================
+// ASSEGNAZIONE STAFF
+// ============================================
+
+model AssegnazioneStaff {
+  id                  String                  @id @default(cuid())
+  eventoId            String
+  staffId             String
+  
+  ruolo               RuoloStaffEvento
+  ruoloDettaglio      String?
+  
+  oraChiamata         String?
+  oraFine             String?
+  faseLavoro          FaseLavoro?
+  
+  compenso            Decimal?                @db.Decimal(10, 2)
+  tipoCompenso        TipoCompensoStaff       @default(GETTONE)
+  
+  stato               StatoAssegnazioneStaff  @default(PROPOSTO)
+  dataConferma        DateTime?
+  notificaInviata     Boolean                 @default(false)
+  dataNotifica        DateTime?
+  confermaLetta       Boolean                 @default(false)
+  
+  mezzoTrasporto      String?
+  rimborsoKm          Decimal?                @db.Decimal(10, 2)
+  
+  note                String?
+  
+  createdAt           DateTime                @default(now())
+  updatedAt           DateTime                @updatedAt
+  
+  evento              Evento                  @relation(fields: [eventoId], references: [id], onDelete: Cascade)
+  staff               Staff                   @relation(fields: [staffId], references: [id], onDelete: Cascade)
+
+  @@unique([eventoId, staffId, ruolo])
+  @@index([eventoId])
+  @@index([staffId])
+  @@index([stato])
+}
+
+// ============================================
+// ASSEGNAZIONE ARTISTI (per esibizione)
+// ============================================
+
+model AssegnazioneArtista {
+  id                  String     @id @default(cuid())
+  eventoId            String
+  artistaId           String
+  
+  oraInizio           String?
+  oraFine             String?
+  durataMinuti        Int?
+  ordineScaletta      Int        @default(0)
+  
+  compensoLordo       Decimal?   @db.Decimal(10, 2)
+  compensoNetto       Decimal?   @db.Decimal(10, 2)
+  
+  agibilitaId         String?
+  
+  confermato          Boolean    @default(false)
+  
+  note                String?
+  
+  createdAt           DateTime   @default(now())
+  updatedAt           DateTime   @updatedAt
+  
+  evento              Evento     @relation(fields: [eventoId], references: [id], onDelete: Cascade)
+  artista             Artista    @relation(fields: [artistaId], references: [id], onDelete: Cascade)
+  agibilita           Agibilita? @relation(fields: [agibilitaId], references: [id])
+
+  @@unique([eventoId, artistaId])
+  @@index([eventoId])
+  @@index([artistaId])
+}
+
+// ============================================
+// MATERIALI EVENTO
+// ============================================
+
+model MaterialeEvento {
+  id                  String               @id @default(cuid())
+  eventoId            String
+  
+  materialeId         String?
+  pacchettoId         String?
+  
+  descrizione         String
+  categoria           String?
+  
+  quantitaRichiesta   Int                  @default(1)
+  quantitaAssegnata   Int                  @default(0)
+  
+  stato               StatoMaterialeEvento @default(RICHIESTO)
+  
+  dataUscita          DateTime?
+  dataRientro         DateTime?
+  verificatoUscita    Boolean              @default(false)
+  verificatoRientro   Boolean              @default(false)
+  
+  note                String?
+  noteDanno           String?
+  
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  
+  evento              Evento               @relation(fields: [eventoId], references: [id], onDelete: Cascade)
+  materiale           Materiale?           @relation(fields: [materialeId], references: [id])
+  pacchetto           Pacchetto?           @relation(fields: [pacchettoId], references: [id])
+
+  @@index([eventoId])
+  @@index([materialeId])
+}
+
+// ============================================
+// ============================================
+// MODULO STAFF
+// ============================================
+// ============================================
+
+model Staff {
+  id                    String              @id @default(cuid())
+  nome                  String
+  cognome               String
+  codiceFiscale         String?             @unique
+  email                 String?
+  telefono              String?
+  telefonoSecondario    String?
+  indirizzo             String?
+  cap                   String?
+  citta                 String?
+  provincia             String?
+  dataNascita           DateTime?
+  comuneNascita         String?
+  provinciaNascita      String?
+  
+  tipoCollaboratore     TipoCollaboratore   @default(ESTERNO)
+  
+  // Competenze tecniche (1-4)
+  competenzaAudio       Int                 @default(0)
+  competenzaLuci        Int                 @default(0)
+  competenzaVideo       Int                 @default(0)
+  competenzaLED         Int                 @default(0)
+  competenzaRigging     Int                 @default(0)
+  competenzaStagehand   Int                 @default(0)
+  competenzaDJTech      Int                 @default(0)
+  competenzaDriver      Int                 @default(0)
+  
+  // Per DJ tech
+  tipologiaDJ           String?             // club, aperitivo, format, piazze, matrimoni, commerciale
+  
+  // Costi
+  costoGettone          Decimal?            @db.Decimal(10, 2)
+  costoOrario           Decimal?            @db.Decimal(10, 2)
+  
+  // Patente e automezzo
+  patente               Boolean             @default(false)
+  tipologiaPatente      String?             // B, C, D, etc
+  automunito            Boolean             @default(false)
+  
+  // Preferenze
+  preferenzeOperative   String?             // JSON: no notturni, no LED, etc
+  disponibilitaMacro    String?             // JSON: weekend, estate, fasce orarie
+  
+  iban                  String?
+  
+  note                  String?
+  noteInterne           String?
+  
+  attivo                Boolean             @default(true)
+  
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+  
+  assegnazioni          AssegnazioneStaff[]
+
+  @@index([cognome, nome])
+  @@index([attivo])
+  @@index([tipoCollaboratore])
+}
+
+// ============================================
+// ============================================
+// MODULO MAGAZZINO
+// ============================================
+// ============================================
+
+model Materiale {
+  id                    String             @id @default(cuid())
+  codice                String             @unique
+  nome                  String
+  descrizione           String?
+  categoria             CategoriaMateriale @default(ALTRO)
+  
+  quantitaTotale        Int                @default(1)
+  quantitaDisponibile   Int                @default(1)
+  
+  prezzoAcquisto        Decimal?           @db.Decimal(10, 2)
+  prezzoNoleggio        Decimal?           @db.Decimal(10, 2)
+  prezzoVendita         Decimal?           @db.Decimal(10, 2)
+  
+  marca                 String?
+  modello               String?
+  numeroSerie           String?
+  
+  ubicazione            String?
+  stato                 StatoMateriale     @default(DISPONIBILE)
+  
+  dataAcquisto          DateTime?
+  dataScadenza          DateTime?
+  ultimaManutenzione    DateTime?
+  prossimaManutenzione  DateTime?
+  
+  note                  String?
+  immagine              String?
+  qrCode                String?
+  
+  attivo                Boolean            @default(true)
+  consumabile           Boolean            @default(false)
+  
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
+  
+  movimenti             MovimentoMagazzino[]
+  pacchetti             PacchettoMateriale[]
+  eventiMateriale       MaterialeEvento[]
+
+  @@index([codice])
+  @@index([categoria])
+  @@index([stato])
+  @@index([attivo])
+}
+
+model MovimentoMagazzino {
+  id              String                  @id @default(cuid())
+  materialeId     String
+  
+  tipo            TipoMovimentoMagazzino
+  quantita        Int
+  data            DateTime                @default(now())
+  
+  eventoId        String?
+  riferimento     String?
+  note            String?
+  utenteId        String?
+  
+  createdAt       DateTime                @default(now())
+  
+  materiale       Materiale               @relation(fields: [materialeId], references: [id], onDelete: Cascade)
+
+  @@index([materialeId])
+  @@index([tipo])
+  @@index([data])
+  @@index([eventoId])
+}
+
+model Pacchetto {
+  id              String               @id @default(cuid())
+  codice          String               @unique
+  nome            String
+  descrizione     String?
+  categoria       CategoriaMateriale?
+  prezzoNoleggio  Decimal?             @db.Decimal(10, 2)
+  
+  attivo          Boolean              @default(true)
+  
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+  
+  materiali       PacchettoMateriale[]
+  eventiPacchetto MaterialeEvento[]
+
+  @@index([codice])
+  @@index([attivo])
+}
+
+model PacchettoMateriale {
+  id              String    @id @default(cuid())
+  pacchettoId     String
+  materialeId     String
+  quantita        Int       @default(1)
+  
+  pacchetto       Pacchetto @relation(fields: [pacchettoId], references: [id], onDelete: Cascade)
+  materiale       Materiale @relation(fields: [materialeId], references: [id], onDelete: Cascade)
+
+  @@unique([pacchettoId, materialeId])
+  @@index([pacchettoId])
+  @@index([materialeId])
+}
+
+// ============================================
+// PROGRESSIVO EVENTO/PREVENTIVO
+// ============================================
+
+model ProgressivoEvento {
+  id           String   @id @default(cuid())
+  anno         Int
+  tipo         String   @default("EVENTO")
+  ultimoNumero Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([anno, tipo])
+}
+
+// ============================================
+// MOVIMENTI BANCARI (Tesoreria)
+// ============================================
+
+model MovimentoBancario {
+  id                 String    @id @default(dbgenerated("gen_random_uuid()"))
+  data               DateTime  @db.Timestamp(6)
+  dataValuta         DateTime  @db.Timestamp(6)
+  descrizione        String
+  importo            Decimal   @db.Decimal(10, 2)
+  tipo               String    @default("ENTRATA")
+  stato              String    @default("DA_RICONCILIARE")
+  riferimentoInterno String?
+  fatturaId          String?
+  pagamentoId        String?
+  note               String?
+  createdAt          DateTime? @default(now()) @db.Timestamp(6)
+  updatedAt          DateTime? @default(now()) @db.Timestamp(6)
+  categoria          String?
+  Fattura            Fattura?  @relation(fields: [fatturaId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 }

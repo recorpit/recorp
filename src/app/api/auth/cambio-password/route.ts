@@ -1,88 +1,37 @@
 // src/app/api/auth/cambio-password/route.ts
-// API Cambio Password
+// NOTA: Il cambio password ora avviene direttamente via Supabase client
+// Questa API è mantenuta per retrocompatibilità ma potrebbe essere rimossa
 
-import { NextRequest, NextResponse } from 'next/server'
-import bcrypt from 'bcryptjs'
-import { auth } from '@/lib/auth'
-import { prisma } from '@/lib/db'
+import { NextResponse } from 'next/server'
+import { createClient } from '@/lib/supabase/server'
 
-export async function POST(request: NextRequest) {
+export async function POST(request: Request) {
   try {
-    const session = await auth()
+    const supabase = await createClient()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
     
-    if (!session?.user?.id) {
-      return NextResponse.json(
-        { error: 'Non autorizzato' },
-        { status: 401 }
-      )
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Non autenticato' }, { status: 401 })
     }
-    
-    const body = await request.json()
-    const { passwordAttuale, nuovaPassword } = body
-    
-    // Validazione
-    if (!passwordAttuale || !nuovaPassword) {
-      return NextResponse.json(
-        { error: 'Password attuale e nuova password sono obbligatorie' },
-        { status: 400 }
-      )
+
+    const { nuovaPassword } = await request.json()
+
+    if (!nuovaPassword) {
+      return NextResponse.json({ error: 'Nuova password richiesta' }, { status: 400 })
     }
-    
-    // Validazione nuova password
-    if (nuovaPassword.length < 8) {
-      return NextResponse.json(
-        { error: 'La nuova password deve essere di almeno 8 caratteri' },
-        { status: 400 }
-      )
-    }
-    
-    // Carica utente con password
-    const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
-      select: {
-        id: true,
-        password: true,
-      }
+
+    // Aggiorna password tramite Supabase Auth
+    const { error: updateError } = await supabase.auth.updateUser({
+      password: nuovaPassword
     })
-    
-    if (!user) {
-      return NextResponse.json(
-        { error: 'Utente non trovato' },
-        { status: 404 }
-      )
+
+    if (updateError) {
+      return NextResponse.json({ error: updateError.message }, { status: 400 })
     }
-    
-    // Verifica password attuale
-    const passwordMatch = await bcrypt.compare(passwordAttuale, user.password)
-    
-    if (!passwordMatch) {
-      return NextResponse.json(
-        { error: 'La password attuale non è corretta' },
-        { status: 400 }
-      )
-    }
-    
-    // Hash nuova password
-    const hashedPassword = await bcrypt.hash(nuovaPassword, 12)
-    
-    // Aggiorna password
-    await prisma.user.update({
-      where: { id: session.user.id },
-      data: {
-        password: hashedPassword,
-      }
-    })
-    
-    return NextResponse.json({ 
-      success: true,
-      message: 'Password cambiata con successo' 
-    })
-    
+
+    return NextResponse.json({ success: true })
   } catch (error) {
     console.error('Errore cambio password:', error)
-    return NextResponse.json(
-      { error: 'Errore durante il cambio password' },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: 'Errore interno' }, { status: 500 })
   }
 }

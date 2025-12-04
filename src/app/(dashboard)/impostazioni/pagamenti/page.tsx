@@ -2,262 +2,443 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Save, CreditCard, Building, Clock, CheckCircle, Plus, Trash2 } from 'lucide-react'
-
-interface ContoBancario {
-  id: string
-  nome: string
-  iban: string
-  banca: string
-  principale: boolean
-}
+import { 
+  Save, RefreshCw, Mail, Euro, Clock, 
+  Users, Settings, AlertCircle, CheckCircle,
+  Loader2, Plus, Trash2, Edit2
+} from 'lucide-react'
 
 export default function ImpostazioniPagamentiPage() {
+  const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [saved, setSaved] = useState(false)
+  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   
-  const [conti, setConti] = useState<ContoBancario[]>([
-    { id: '1', nome: 'Conto Principale', iban: '', banca: '', principale: true }
-  ])
-  
+  // Impostazioni generali
   const [impostazioni, setImpostazioni] = useState({
-    giorniPagamentoDefault: '30',
-    giorniPagamentoAnticipato: '7',
-    scontoAnticipo: '5.00',
-    causaleBoificoDefault: 'Compenso prestazione artistica - {codice}',
+    pivaGiorniTrigger: 30,
+    pivaImportoMinimo: 100,
+    pivaApplicaRitenuta4: true,
+    trasfertaItaliaDefault: 0,
+    emailConsulente: '',
+    emailConsulenteCC: '',
+  })
+  
+  // Config gettoni full time
+  const [configGettoni, setConfigGettoni] = useState<any[]>([])
+  const [artistiFullTime, setArtistiFullTime] = useState<any[]>([])
+  const [modalGettone, setModalGettone] = useState<any>(null)
+  const [formGettone, setFormGettone] = useState({
+    artistaId: '',
+    gettoneBase: 50,
+    stipendioFissoMensile: 0,
+    gettoniPerTipoEvento: {} as Record<string, number>,
   })
 
-  const handleAddConto = () => {
-    setConti([...conti, {
-      id: Date.now().toString(),
-      nome: '',
-      iban: '',
-      banca: '',
-      principale: false
-    }])
-  }
+  useEffect(() => {
+    loadData()
+  }, [])
 
-  const handleRemoveConto = (id: string) => {
-    if (conti.length === 1) return
-    setConti(conti.filter(c => c.id !== id))
-  }
-
-  const handleContoChange = (id: string, field: keyof ContoBancario, value: string | boolean) => {
-    setConti(conti.map(c => {
-      if (c.id === id) {
-        return { ...c, [field]: value }
+  async function loadData() {
+    setLoading(true)
+    try {
+      // Carica impostazioni
+      const resImp = await fetch('/api/impostazioni/pagamenti')
+      if (resImp.ok) {
+        const data = await resImp.json()
+        setImpostazioni({
+          pivaGiorniTrigger: data.pivaGiorniTrigger || 30,
+          pivaImportoMinimo: Number(data.pivaImportoMinimo) || 100,
+          pivaApplicaRitenuta4: data.pivaApplicaRitenuta4 ?? true,
+          trasfertaItaliaDefault: Number(data.trasfertaItaliaDefault) || 0,
+          emailConsulente: data.emailConsulente || '',
+          emailConsulenteCC: data.emailConsulenteCC || '',
+        })
       }
-      // Se stiamo impostando principale, rimuoviamolo dagli altri
-      if (field === 'principale' && value === true) {
-        return { ...c, principale: false }
+      
+      // Carica config gettoni
+      const resGett = await fetch('/api/pagamenti/config-gettoni')
+      if (resGett.ok) {
+        const data = await resGett.json()
+        setConfigGettoni(data)
       }
-      return c
-    }))
-    setSaved(false)
+      
+      // Carica artisti full time per select
+      const resArt = await fetch('/api/artisti?tipoContratto=FULL_TIME')
+      if (resArt.ok) {
+        const data = await resArt.json()
+        setArtistiFullTime(data.artisti || [])
+      }
+    } catch (error) {
+      console.error('Errore caricamento:', error)
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const handleImpostazioneChange = (field: string, value: string) => {
-    setImpostazioni(prev => ({ ...prev, [field]: value }))
-    setSaved(false)
-  }
-
-  const handleSave = async () => {
+  async function salvaImpostazioni() {
     setSaving(true)
-    
+    setMessage(null)
     try {
       const res = await fetch('/api/impostazioni/pagamenti', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ conti, impostazioni }),
+        body: JSON.stringify(impostazioni)
       })
       
       if (!res.ok) throw new Error('Errore salvataggio')
       
-      setSaved(true)
-      setTimeout(() => setSaved(false), 3000)
-    } catch (err) {
+      setMessage({ type: 'success', text: 'Impostazioni salvate!' })
+      setTimeout(() => setMessage(null), 3000)
+    } catch (error) {
+      setMessage({ type: 'error', text: 'Errore nel salvataggio' })
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function salvaConfigGettone() {
+    if (!formGettone.artistaId) {
+      alert('Seleziona un dipendente')
+      return
+    }
+    
+    setSaving(true)
+    try {
+      const res = await fetch('/api/pagamenti/config-gettoni', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formGettone)
+      })
+      
+      if (!res.ok) throw new Error('Errore salvataggio')
+      
+      setModalGettone(null)
+      setFormGettone({
+        artistaId: '',
+        gettoneBase: 50,
+        stipendioFissoMensile: 0,
+        gettoniPerTipoEvento: {},
+      })
+      loadData()
+    } catch (error) {
       alert('Errore nel salvataggio')
     } finally {
       setSaving(false)
     }
   }
 
+  function apriModificaGettone(config: any) {
+    setFormGettone({
+      artistaId: config.artistaId,
+      gettoneBase: Number(config.gettoneBase),
+      stipendioFissoMensile: Number(config.stipendioFissoMensile),
+      gettoniPerTipoEvento: config.gettoniPerTipoEvento || {},
+    })
+    setModalGettone(config)
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+      </div>
+    )
+  }
+
   return (
-    <div>
+    <div className="max-w-4xl">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Pagamenti</h1>
-          <p className="text-gray-500">Configura conti bancari e modalità di pagamento</p>
+          <h1 className="text-2xl font-bold text-gray-900">Impostazioni Pagamenti</h1>
+          <p className="text-gray-500">Configura P.IVA, Full Time e parametri generali</p>
         </div>
-        
-        <button
-          onClick={handleSave}
-          disabled={saving}
-          className="flex items-center gap-2 px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-        >
-          {saved ? <CheckCircle size={20} /> : <Save size={20} />}
-          {saving ? 'Salvataggio...' : saved ? 'Salvato!' : 'Salva'}
-        </button>
       </div>
 
-      <div className="space-y-6">
-        {/* Conti Bancari */}
-        <div className="bg-white rounded-lg shadow-sm p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-              <Building size={20} />
-              Conti Bancari
-            </h2>
-            <button
-              onClick={handleAddConto}
-              className="flex items-center gap-1 px-3 py-1.5 text-sm text-blue-600 hover:bg-blue-50 rounded-lg"
-            >
-              <Plus size={16} />
-              Aggiungi Conto
-            </button>
-          </div>
-          
-          <div className="space-y-4">
-            {conti.map((conto, index) => (
-              <div key={conto.id} className="p-4 border border-gray-200 rounded-lg">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="text"
-                      value={conto.nome}
-                      onChange={(e) => handleContoChange(conto.id, 'nome', e.target.value)}
-                      placeholder="Nome conto"
-                      className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm font-medium"
-                    />
-                    <label className="flex items-center gap-2 text-sm">
-                      <input
-                        type="checkbox"
-                        checked={conto.principale}
-                        onChange={(e) => handleContoChange(conto.id, 'principale', e.target.checked)}
-                        className="w-4 h-4 text-blue-600 rounded"
-                      />
-                      Principale
-                    </label>
-                  </div>
-                  {conti.length > 1 && (
-                    <button
-                      onClick={() => handleRemoveConto(conto.id)}
-                      className="p-1.5 text-red-500 hover:bg-red-50 rounded"
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  )}
-                </div>
-                
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs text-gray-500 mb-1">IBAN</label>
-                    <input
-                      type="text"
-                      value={conto.iban}
-                      onChange={(e) => handleContoChange(conto.id, 'iban', e.target.value.toUpperCase())}
-                      placeholder="IT00X0000000000000000000000"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg font-mono text-sm uppercase"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs text-gray-500 mb-1">Banca</label>
-                    <input
-                      type="text"
-                      value={conto.banca}
-                      onChange={(e) => handleContoChange(conto.id, 'banca', e.target.value)}
-                      placeholder="Nome banca"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                    />
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
+      {message && (
+        <div className={`mb-6 p-4 rounded-lg flex items-center gap-2 ${
+          message.type === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
+        }`}>
+          {message.type === 'success' ? <CheckCircle size={20} /> : <AlertCircle size={20} />}
+          {message.text}
         </div>
+      )}
 
-        {/* Termini Pagamento */}
-        <div className="bg-white rounded-lg shadow-sm p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-            <Clock size={20} />
-            Termini di Pagamento
-          </h2>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Giorni pagamento standard
-              </label>
-              <div className="flex items-center gap-2">
-                <input
-                  type="number"
-                  value={impostazioni.giorniPagamentoDefault}
-                  onChange={(e) => handleImpostazioneChange('giorniPagamentoDefault', e.target.value)}
-                  min="1"
-                  className="w-20 px-3 py-2 border border-gray-300 rounded-lg"
-                />
-                <span className="text-gray-500">giorni dalla firma</span>
-              </div>
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Giorni pagamento anticipato
-              </label>
-              <div className="flex items-center gap-2">
-                <input
-                  type="number"
-                  value={impostazioni.giorniPagamentoAnticipato}
-                  onChange={(e) => handleImpostazioneChange('giorniPagamentoAnticipato', e.target.value)}
-                  min="1"
-                  className="w-20 px-3 py-2 border border-gray-300 rounded-lg"
-                />
-                <span className="text-gray-500">giorni dalla firma</span>
-              </div>
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Sconto per pagamento anticipato
-              </label>
-              <div className="flex items-center gap-2">
-                <span className="text-gray-500">€</span>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={impostazioni.scontoAnticipo}
-                  onChange={(e) => handleImpostazioneChange('scontoAnticipo', e.target.value)}
-                  className="w-24 px-3 py-2 border border-gray-300 rounded-lg"
-                />
-              </div>
-              <p className="text-xs text-gray-500 mt-1">Importo sottratto se l&apos;artista sceglie pagamento anticipato</p>
-            </div>
+      {/* Sezione P.IVA */}
+      <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
+        <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+          <Euro size={20} className="text-purple-600" />
+          Impostazioni P.IVA
+        </h2>
+        
+        <div className="grid grid-cols-2 gap-6">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Giorni per Trigger Automatico
+            </label>
+            <input
+              type="number"
+              value={impostazioni.pivaGiorniTrigger}
+              onChange={(e) => setImpostazioni({...impostazioni, pivaGiorniTrigger: parseInt(e.target.value) || 30})}
+              className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500"
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              Dopo quanti giorni richiedere automaticamente la fattura
+            </p>
           </div>
-        </div>
-
-        {/* Causale Bonifico */}
-        <div className="bg-white rounded-lg shadow-sm p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-            <CreditCard size={20} />
-            Causale Bonifico
-          </h2>
           
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Template causale
+              Importo Minimo Trigger (€)
             </label>
             <input
-              type="text"
-              value={impostazioni.causaleBoificoDefault}
-              onChange={(e) => handleImpostazioneChange('causaleBoificoDefault', e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+              type="number"
+              value={impostazioni.pivaImportoMinimo}
+              onChange={(e) => setImpostazioni({...impostazioni, pivaImportoMinimo: parseFloat(e.target.value) || 100})}
+              className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500"
             />
             <p className="text-xs text-gray-500 mt-1">
-              Variabili: {'{codice}'} = codice ricevuta, {'{artista}'} = nome artista, {'{mese}'} = mese prestazioni
+              Richiedi fattura al raggiungimento di questo importo
             </p>
+          </div>
+          
+          <div className="col-span-2">
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={impostazioni.pivaApplicaRitenuta4}
+                onChange={(e) => setImpostazioni({...impostazioni, pivaApplicaRitenuta4: e.target.checked})}
+                className="w-4 h-4 rounded border-gray-300"
+              />
+              <span className="text-sm text-gray-700">
+                Applica ritenuta d'acconto 4% di default
+              </span>
+            </label>
           </div>
         </div>
       </div>
+
+      {/* Sezione Trasferte */}
+      <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
+        <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+          <Clock size={20} className="text-blue-600" />
+          Rimborsi e Trasferte
+        </h2>
+        
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Trasferta Italia Default (€)
+          </label>
+          <input
+            type="number"
+            value={impostazioni.trasfertaItaliaDefault}
+            onChange={(e) => setImpostazioni({...impostazioni, trasfertaItaliaDefault: parseFloat(e.target.value) || 0})}
+            className="w-full max-w-xs px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+          />
+          <p className="text-xs text-gray-500 mt-1">
+            Importo forfettario default per trasferta Italia
+          </p>
+        </div>
+      </div>
+
+      {/* Sezione Email Consulente */}
+      <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
+        <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+          <Mail size={20} className="text-green-600" />
+          Email Consulente del Lavoro
+        </h2>
+        
+        <div className="grid grid-cols-2 gap-6">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Email Consulente *
+            </label>
+            <input
+              type="email"
+              value={impostazioni.emailConsulente}
+              onChange={(e) => setImpostazioni({...impostazioni, emailConsulente: e.target.value})}
+              placeholder="consulente@studio.it"
+              className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-green-500"
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Email CC (opzionale)
+            </label>
+            <input
+              type="email"
+              value={impostazioni.emailConsulenteCC}
+              onChange={(e) => setImpostazioni({...impostazioni, emailConsulenteCC: e.target.value})}
+              placeholder="copia@azienda.it"
+              className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-green-500"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Pulsante Salva */}
+      <div className="flex justify-end mb-8">
+        <button
+          onClick={salvaImpostazioni}
+          disabled={saving}
+          className="flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+        >
+          {saving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
+          Salva Impostazioni
+        </button>
+      </div>
+
+      {/* Sezione Gettoni Full Time */}
+      <div className="bg-white rounded-xl shadow-sm p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+            <Users size={20} className="text-green-600" />
+            Configurazione Gettoni Full Time
+          </h2>
+          <button
+            onClick={() => {
+              setFormGettone({
+                artistaId: '',
+                gettoneBase: 50,
+                stipendioFissoMensile: 0,
+                gettoniPerTipoEvento: {},
+              })
+              setModalGettone({})
+            }}
+            className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+          >
+            <Plus size={18} />
+            Aggiungi
+          </button>
+        </div>
+        
+        {configGettoni.length === 0 ? (
+          <div className="text-center text-gray-500 py-8">
+            Nessuna configurazione. Aggiungi i gettoni per i dipendenti full time.
+          </div>
+        ) : (
+          <table className="w-full">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="p-3 text-left text-sm font-medium text-gray-700">Dipendente</th>
+                <th className="p-3 text-right text-sm font-medium text-gray-700">Stipendio Fisso</th>
+                <th className="p-3 text-right text-sm font-medium text-gray-700">Gettone Base</th>
+                <th className="p-3 text-center text-sm font-medium text-gray-700">Azioni</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y">
+              {configGettoni.map((config) => (
+                <tr key={config.id} className="hover:bg-gray-50">
+                  <td className="p-3">
+                    <p className="font-medium">{config.artista.cognome} {config.artista.nome}</p>
+                  </td>
+                  <td className="p-3 text-right">
+                    €{Number(config.stipendioFissoMensile).toFixed(2)}
+                  </td>
+                  <td className="p-3 text-right">
+                    €{Number(config.gettoneBase).toFixed(2)}
+                  </td>
+                  <td className="p-3 text-center">
+                    <button
+                      onClick={() => apriModificaGettone(config)}
+                      className="p-2 hover:bg-gray-100 rounded text-blue-600"
+                    >
+                      <Edit2 size={16} />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      {/* Modal Config Gettone */}
+      {modalGettone && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 max-w-lg w-full mx-4">
+            <h2 className="text-lg font-bold text-gray-900 mb-4">
+              {modalGettone.id ? 'Modifica' : 'Nuova'} Configurazione Gettone
+            </h2>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Dipendente *
+                </label>
+                <select
+                  value={formGettone.artistaId}
+                  onChange={(e) => setFormGettone({...formGettone, artistaId: e.target.value})}
+                  disabled={!!modalGettone.id}
+                  className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 disabled:bg-gray-100"
+                >
+                  <option value="">Seleziona...</option>
+                  {artistiFullTime
+                    .filter(a => !configGettoni.some(c => c.artistaId === a.id) || formGettone.artistaId === a.id)
+                    .map((artista) => (
+                      <option key={artista.id} value={artista.id}>
+                        {artista.cognome} {artista.nome}
+                      </option>
+                    ))
+                  }
+                </select>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Stipendio Fisso Mensile (€)
+                  </label>
+                  <input
+                    type="number"
+                    value={formGettone.stipendioFissoMensile}
+                    onChange={(e) => setFormGettone({...formGettone, stipendioFissoMensile: parseFloat(e.target.value) || 0})}
+                    className="w-full px-4 py-2 border rounded-lg"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Gettone Base (€)
+                  </label>
+                  <input
+                    type="number"
+                    value={formGettone.gettoneBase}
+                    onChange={(e) => setFormGettone({...formGettone, gettoneBase: parseFloat(e.target.value) || 50})}
+                    className="w-full px-4 py-2 border rounded-lg"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Gettone agenzia per ogni presenza
+                  </p>
+                </div>
+              </div>
+              
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <p className="text-sm text-gray-600">
+                  <strong>Esempio:</strong> Se il compenso netto agibilità è €300 e il gettone è €50, 
+                  verranno calcolati €250 per la busta paga (300 - 50).
+                </p>
+              </div>
+            </div>
+            
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => setModalGettone(null)}
+                className="flex-1 px-4 py-2 border rounded-lg hover:bg-gray-50"
+              >
+                Annulla
+              </button>
+              <button
+                onClick={salvaConfigGettone}
+                disabled={saving}
+                className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
+              >
+                {saving ? 'Salvataggio...' : 'Salva'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

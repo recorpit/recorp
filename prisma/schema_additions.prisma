@@ -1,0 +1,270 @@
+// ============================================
+// ENUM - MODULO CONTRATTI/P.IVA
+// ============================================
+
+enum StatoFatturaPIVA {
+  DA_RICHIEDERE
+  RICHIESTA_INVIATA
+  FATTURA_RICEVUTA
+  INVIATA_CONSULENTE
+  IN_DISTINTA
+  PAGATA
+}
+
+enum TipoRimborsoSpesa {
+  TRASFERTA_ITALIA
+  KM
+  VITTO
+  ALLOGGIO
+  ALTRO
+}
+
+enum StatoBustaPaga {
+  DA_ELABORARE
+  INVIATA_CONSULENTE
+  RICEVUTA
+  PAGATA
+}
+
+// ============================================
+// RAGGRUPPAMENTO COMPENSI P.IVA
+// ============================================
+
+model RaggruppamentoCompensoPIVA {
+  id                    String             @id @default(cuid())
+  artistaId             String
+  stato                 StatoFatturaPIVA   @default(DA_RICHIEDERE)
+  
+  periodoInizio         DateTime
+  periodoFine           DateTime
+  
+  totaleNetto           Decimal            @default(0) @db.Decimal(10, 2)
+  totaleRitenuta4       Decimal            @default(0) @db.Decimal(10, 2)
+  totaleImponibile      Decimal            @default(0) @db.Decimal(10, 2)
+  numeroAgibilita       Int                @default(0)
+  
+  dataRichiestaFattura  DateTime?
+  emailRichiestaInviata Boolean            @default(false)
+  
+  numeroFattura         String?
+  dataFattura           DateTime?
+  pdfFatturaPath        String?
+  dataRicezioneFattura  DateTime?
+  
+  dataInvioConsulente   DateTime?
+  emailConsulente       String?
+  
+  dataInserimentoDistinta DateTime?
+  dataPagamento         DateTime?
+  
+  note                  String?
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
+  
+  artista               Artista            @relation(fields: [artistaId], references: [id], onDelete: Cascade)
+  agibilitaCollegate    AgibilitaRaggruppamento[]
+
+  @@index([artistaId])
+  @@index([stato])
+  @@index([periodoFine])
+}
+
+// ============================================
+// COLLEGAMENTO AGIBILITA - RAGGRUPPAMENTO
+// ============================================
+
+model AgibilitaRaggruppamento {
+  id                    String                    @id @default(cuid())
+  raggruppamentoId      String
+  artistaAgibilitaId    String
+  compensoNetto         Decimal                   @db.Decimal(10, 2)
+  ritenuta4             Decimal                   @default(0) @db.Decimal(10, 2)
+  createdAt             DateTime                  @default(now())
+  
+  raggruppamento        RaggruppamentoCompensoPIVA @relation(fields: [raggruppamentoId], references: [id], onDelete: Cascade)
+  artistaAgibilita      ArtistaAgibilita          @relation(fields: [artistaAgibilitaId], references: [id], onDelete: Cascade)
+
+  @@unique([raggruppamentoId, artistaAgibilitaId])
+  @@index([raggruppamentoId])
+}
+
+// ============================================
+// CONFIG GETTONE FULL TIME
+// ============================================
+
+model ConfigGettoneFullTime {
+  id                    String   @id @default(cuid())
+  artistaId             String   @unique
+  
+  gettoneBase           Decimal  @default(50) @db.Decimal(10, 2)
+  gettoniPerTipoEvento  Json?    // { "CLUB": 50, "PIAZZA": 80 }
+  gettoniPerTipoLocale  Json?    // { "DISCOTECA": 60 }
+  stipendioFissoMensile Decimal  @default(0) @db.Decimal(10, 2)
+  
+  attivo                Boolean  @default(true)
+  note                  String?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  
+  artista               Artista  @relation(fields: [artistaId], references: [id], onDelete: Cascade)
+}
+
+// ============================================
+// CALCOLO MENSILE FULL TIME
+// ============================================
+
+model CalcoloMensileFullTime {
+  id                    String          @id @default(cuid())
+  artistaId             String
+  anno                  Int
+  mese                  Int
+  stato                 StatoBustaPaga  @default(DA_ELABORARE)
+  
+  stipendioFisso        Decimal         @default(0) @db.Decimal(10, 2)
+  totaleNettoAgibilita  Decimal         @default(0) @db.Decimal(10, 2)
+  totaleGettoniAgenzia  Decimal         @default(0) @db.Decimal(10, 2)
+  nettoPerBustaPaga     Decimal         @default(0) @db.Decimal(10, 2)
+  numeroPresenze        Int             @default(0)
+  
+  totaleRimborsiSpesa   Decimal         @default(0) @db.Decimal(10, 2)
+  totaleBustaPaga       Decimal         @default(0) @db.Decimal(10, 2)
+  
+  pdfBustaPagaPath      String?
+  costoLordoAzienda     Decimal?        @db.Decimal(10, 2)
+  costiAccessori        Decimal?        @db.Decimal(10, 2)
+  dataRicezioneBustaPaga DateTime?
+  
+  dataInvioConsulente   DateTime?
+  dataPagamento         DateTime?
+  
+  note                  String?
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
+  
+  artista               Artista         @relation(fields: [artistaId], references: [id], onDelete: Cascade)
+  dettagliPresenze      DettaglioPresenzaFullTime[]
+  rimborsiSpesa         RimborsoSpesa[]
+
+  @@unique([artistaId, anno, mese])
+  @@index([artistaId])
+  @@index([anno, mese])
+  @@index([stato])
+}
+
+// ============================================
+// DETTAGLIO PRESENZA FULL TIME
+// ============================================
+
+model DettaglioPresenzaFullTime {
+  id                    String                 @id @default(cuid())
+  calcoloMensileId      String
+  artistaAgibilitaId    String
+  
+  dataAgibilita         DateTime
+  localeNome            String?
+  tipoEvento            String?
+  
+  compensoNetto         Decimal                @db.Decimal(10, 2)
+  gettoneAgenzia        Decimal                @db.Decimal(10, 2)
+  nettoPerBustaPaga     Decimal                @db.Decimal(10, 2)
+  
+  createdAt             DateTime               @default(now())
+  
+  calcoloMensile        CalcoloMensileFullTime @relation(fields: [calcoloMensileId], references: [id], onDelete: Cascade)
+  artistaAgibilita      ArtistaAgibilita       @relation(fields: [artistaAgibilitaId], references: [id], onDelete: Cascade)
+
+  @@unique([calcoloMensileId, artistaAgibilitaId])
+  @@index([calcoloMensileId])
+}
+
+// ============================================
+// RIMBORSO SPESA
+// ============================================
+
+model RimborsoSpesa {
+  id                    String                  @id @default(cuid())
+  artistaId             String
+  calcoloMensileId      String?
+  
+  tipo                  TipoRimborsoSpesa       @default(TRASFERTA_ITALIA)
+  descrizione           String?
+  importo               Decimal                 @db.Decimal(10, 2)
+  data                  DateTime
+  
+  agibilitaId           String?
+  documentoPath         String?
+  
+  note                  String?
+  createdAt             DateTime                @default(now())
+  updatedAt             DateTime                @updatedAt
+  
+  artista               Artista                 @relation(fields: [artistaId], references: [id], onDelete: Cascade)
+  calcoloMensile        CalcoloMensileFullTime? @relation(fields: [calcoloMensileId], references: [id], onDelete: SetNull)
+  agibilita             Agibilita?              @relation(fields: [agibilitaId], references: [id], onDelete: SetNull)
+
+  @@index([artistaId])
+  @@index([calcoloMensileId])
+  @@index([data])
+}
+
+// ============================================
+// CONFIG GETTONE EVENTO (per A_CHIAMATA/Tecnici)
+// ============================================
+
+model ConfigGettoneEvento {
+  id          String   @id @default(cuid())
+  nome        String
+  tipoEvento  String?
+  tipoLocale  String?
+  gettone     Decimal  @db.Decimal(10, 2)
+  descrizione String?
+  attivo      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([tipoEvento])
+  @@index([tipoLocale])
+}
+
+// ============================================
+// IMPOSTAZIONI PAGAMENTI
+// ============================================
+
+model ImpostazioniPagamenti {
+  id                          String   @id @default("default")
+  
+  pivaGiorniTrigger           Int      @default(30)
+  pivaImportoMinimo           Decimal  @default(100) @db.Decimal(10, 2)
+  pivaApplicaRitenuta4        Boolean  @default(true)
+  
+  trasfertaItaliaDefault      Decimal  @default(0) @db.Decimal(10, 2)
+  
+  emailConsulente             String?
+  emailConsulenteCC           String?
+  
+  templateEmailRichiestaFattura String?
+  templateEmailInvioConsulente  String?
+  
+  updatedAt                   DateTime @updatedAt
+}
+
+// ============================================
+// AGGIORNAMENTI MODELLI ESISTENTI
+// (da aggiungere alle relazioni esistenti)
+// ============================================
+
+// In model Artista aggiungere:
+//   applicaRitenuta4          Boolean  @default(false)
+//   raggruppamentiPIVA        RaggruppamentoCompensoPIVA[]
+//   configGettone             ConfigGettoneFullTime?
+//   calcoliMensili            CalcoloMensileFullTime[]
+//   rimborsiSpesa             RimborsoSpesa[]
+
+// In model ArtistaAgibilita aggiungere:
+//   raggruppamentoPIVAId      String?
+//   raggruppamentoPIVA        RaggruppamentoCompensoPIVA? @relation(fields: [raggruppamentoPIVAId], references: [id])
+//   agibilitaRaggruppamento   AgibilitaRaggruppamento[]
+//   dettagliPresenzaFullTime  DettaglioPresenzaFullTime[]
+
+// In model Agibilita aggiungere:
+//   rimborsiSpesa             RimborsoSpesa[]

@@ -2,45 +2,67 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 
+// GET - Recupera impostazioni pagamenti
 export async function GET() {
   try {
-    const settings = await prisma.impostazioni.findFirst({
-      where: { chiave: 'pagamenti' }
+    let impostazioni = await prisma.impostazioniPagamenti.findFirst({
+      where: { id: 'default' }
     })
     
-    if (settings) {
-      return NextResponse.json(JSON.parse(settings.valore))
+    // Se non esistono, crea default
+    if (!impostazioni) {
+      impostazioni = await prisma.impostazioniPagamenti.create({
+        data: { id: 'default' }
+      })
     }
     
-    // Default
-    return NextResponse.json({
-      conti: [
-        { id: '1', nome: 'Conto Principale', iban: '', banca: '', principale: true }
-      ],
-      impostazioni: {
-        giorniPagamentoDefault: '30',
-        giorniPagamentoAnticipato: '7',
-        scontoAnticipo: '5.00',
-        causaleBoificoDefault: 'Compenso prestazione artistica - {codice}',
-      }
-    })
+    return NextResponse.json(impostazioni)
   } catch (error) {
-    return NextResponse.json({ error: 'Errore' }, { status: 500 })
+    console.error('Errore GET impostazioni pagamenti:', error)
+    return NextResponse.json({ error: 'Errore nel recupero' }, { status: 500 })
   }
 }
 
+// PUT - Aggiorna impostazioni pagamenti
 export async function PUT(request: NextRequest) {
   try {
-    const data = await request.json()
+    const body = await request.json()
     
-    await prisma.impostazioni.upsert({
-      where: { chiave: 'pagamenti' },
-      update: { valore: JSON.stringify(data), updatedAt: new Date() },
-      create: { chiave: 'pagamenti', valore: JSON.stringify(data) }
+    const impostazioni = await prisma.impostazioniPagamenti.upsert({
+      where: { id: 'default' },
+      update: {
+        // P.IVA
+        pivaGiorniTrigger: body.pivaGiorniTrigger ?? 30,
+        pivaImportoMinimo: body.pivaImportoMinimo ? parseFloat(body.pivaImportoMinimo) : 100,
+        pivaApplicaRitenuta4: body.pivaApplicaRitenuta4 ?? true,
+        
+        // Trasferta
+        trasfertaItaliaDefault: body.trasfertaItaliaDefault ? parseFloat(body.trasfertaItaliaDefault) : 0,
+        
+        // Email consulente
+        emailConsulente: body.emailConsulente || null,
+        emailConsulenteCC: body.emailConsulenteCC || null,
+        
+        // Template
+        templateEmailRichiestaFattura: body.templateEmailRichiestaFattura || null,
+        templateEmailInvioConsulente: body.templateEmailInvioConsulente || null,
+      },
+      create: {
+        id: 'default',
+        pivaGiorniTrigger: body.pivaGiorniTrigger ?? 30,
+        pivaImportoMinimo: body.pivaImportoMinimo ? parseFloat(body.pivaImportoMinimo) : 100,
+        pivaApplicaRitenuta4: body.pivaApplicaRitenuta4 ?? true,
+        trasfertaItaliaDefault: body.trasfertaItaliaDefault ? parseFloat(body.trasfertaItaliaDefault) : 0,
+        emailConsulente: body.emailConsulente || null,
+        emailConsulenteCC: body.emailConsulenteCC || null,
+        templateEmailRichiestaFattura: body.templateEmailRichiestaFattura || null,
+        templateEmailInvioConsulente: body.templateEmailInvioConsulente || null,
+      }
     })
     
-    return NextResponse.json({ success: true })
+    return NextResponse.json(impostazioni)
   } catch (error) {
-    return NextResponse.json({ error: 'Errore salvataggio' }, { status: 500 })
+    console.error('Errore PUT impostazioni pagamenti:', error)
+    return NextResponse.json({ error: 'Errore nel salvataggio' }, { status: 500 })
   }
 }

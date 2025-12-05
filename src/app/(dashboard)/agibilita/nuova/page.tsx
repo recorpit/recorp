@@ -659,23 +659,21 @@ export default function NuovaAgibilitaPage() {
     }
     
     // Verifica duplicati: stesso artista nello stesso giorno (dataInizio)
-    const artistiPerData = new Map<string, string[]>()
+    const artistiPerData = new Map<string, { count: number, nome: string, data: string }>()
     periodi.forEach(p => {
       p.artisti.forEach(a => {
-        const chiave = `${a.id}-${p.dataInizio}`
+        const chiave = `${a.id}|${p.dataInizio}` // Usa | come separatore invece di -
         if (!artistiPerData.has(chiave)) {
-          artistiPerData.set(chiave, [])
+          artistiPerData.set(chiave, { count: 0, nome: `${a.cognome} ${a.nome}`, data: p.dataInizio })
         }
-        artistiPerData.get(chiave)!.push(`${a.cognome} ${a.nome}`)
+        artistiPerData.get(chiave)!.count++
       })
     })
     
     const duplicati: string[] = []
-    artistiPerData.forEach((nomi, chiave) => {
-      if (nomi.length > 1) {
-        const [artistaId, data] = chiave.split('-')
-        const artista = tuttiArtisti.find(a => a.id === artistaId)
-        duplicati.push(`${artista?.cognome} ${artista?.nome} il ${new Date(data).toLocaleDateString('it-IT')}`)
+    artistiPerData.forEach((info) => {
+      if (info.count > 1) {
+        duplicati.push(`${info.nome} il ${new Date(info.data).toLocaleDateString('it-IT')}`)
       }
     })
     
@@ -697,7 +695,7 @@ export default function NuovaAgibilitaPage() {
       const periodo = periodi.find(p => p.artisti.some(art => art.id === a.id))
       return { artistaId: a.id, nome: `${a.cognome} ${a.nome}`, dataInizio: periodo?.dataInizio }
     }))
-    
+
     try {
       const res = await fetch('/api/agibilita', {
         method: 'POST',

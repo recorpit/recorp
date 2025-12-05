@@ -1,78 +1,53 @@
 // src/app/api/documenti/[id]/download/route.ts
 import { NextRequest, NextResponse } from 'next/server'
-import { readFile, stat } from 'fs/promises'
-import path from 'path'
-import { existsSync } from 'fs'
+import { prisma } from '@/lib/db'
+import { downloadFile, getSignedUrl } from '@/lib/supabase/storage'
 
-// Decodifica ID in path
-function decodeId(id: string): string {
-  try {
-    return Buffer.from(id, 'base64url').toString('utf-8')
-  } catch {
-    return ''
-  }
-}
-
-// Determina MIME type dall'estensione
-function getMimeType(ext: string): string {
-  const mimeTypes: Record<string, string> = {
-    'pdf': 'application/pdf',
-    'jpg': 'image/jpeg',
-    'jpeg': 'image/jpeg',
-    'png': 'image/png',
-    'gif': 'image/gif',
-    'webp': 'image/webp',
-    'doc': 'application/msword',
-    'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    'xls': 'application/vnd.ms-excel',
-    'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    'csv': 'text/csv',
-    'txt': 'text/plain',
-    'zip': 'application/zip',
-    'mp4': 'video/mp4',
-    'mp3': 'audio/mpeg',
-  }
-  return mimeTypes[ext.toLowerCase()] || 'application/octet-stream'
-}
-
-// GET - Download documento
+// GET - Download documento da Supabase Storage
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { id } = await params
-    const relativePath = decodeId(id)
-    
-    if (!relativePath) {
-      return NextResponse.json({ error: 'ID non valido' }, { status: 400 })
+
+    // Trova documento nel database
+    const documento = await prisma.documento.findUnique({
+      where: { id }
+    })
+
+    if (!documento) {
+      return NextResponse.json({ error: 'Documento non trovato' }, { status: 404 })
     }
-    
-    const fullPath = path.join(process.cwd(), 'public', relativePath)
-    
-    if (!existsSync(fullPath)) {
-      return NextResponse.json({ error: 'File non trovato' }, { status: 404 })
+
+    // Check se si vuole redirect o download diretto
+    const { searchParams } = new URL(request.url)
+    const redirect = searchParams.get('redirect') === 'true'
+
+    if (redirect) {
+      // Genera URL firmato e redirect
+      const signedUrl = await getSignedUrl(documento.path, 3600) // 1 ora
+      
+      if (!signedUrl) {
+        return NextResponse.json({ error: 'Errore generazione URL' }, { status: 500 })
+      }
+
+      return NextResponse.redirect(signedUrl)
     }
-    
-    // Verifica che sia dentro la cartella uploads (sicurezza)
-    const uploadsBase = path.join(process.cwd(), 'public', 'uploads')
-    if (!fullPath.startsWith(uploadsBase)) {
-      return NextResponse.json({ error: 'Accesso non autorizzato' }, { status: 403 })
+
+    // Download diretto - scarica da Supabase e ritorna
+    const fileBuffer = await downloadFile(documento.path)
+
+    if (!fileBuffer) {
+      return NextResponse.json({ error: 'File non trovato nello storage' }, { status: 404 })
     }
-    
-    const fileStat = await stat(fullPath)
-    const fileName = path.basename(fullPath)
-    const ext = path.extname(fileName).replace('.', '').toLowerCase()
-    
-    // Leggi file
-    const fileBuffer = await readFile(fullPath)
-    
+
     // Ritorna file per download
     return new NextResponse(fileBuffer, {
       headers: {
-        'Content-Type': getMimeType(ext),
-        'Content-Disposition': `attachment; filename="${encodeURIComponent(fileName)}"`,
-        'Content-Length': fileStat.size.toString(),
+        'Content-Type': documento.mimeType || 'application/octet-stream',
+        'Content-Disposition': `attachment; filename="${encodeURIComponent(documento.nome)}"`,
+        'Content-Length': fileBuffer.length.toString(),
       }
     })
   } catch (error) {

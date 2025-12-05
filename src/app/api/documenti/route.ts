@@ -1,38 +1,27 @@
 // src/app/api/documenti/route.ts
 import { NextRequest, NextResponse } from 'next/server'
-import { readdir, stat, mkdir, writeFile } from 'fs/promises'
-import path from 'path'
-import { existsSync } from 'fs'
+import { prisma } from '@/lib/db'
+import { 
+  uploadFile, 
+  listFiles, 
+  buildStoragePath,
+  getStorageClient,
+  STORAGE_BUCKET
+} from '@/lib/supabase/storage'
 
-const ARCHIVIO_BASE = path.join(process.cwd(), 'public', 'uploads')
-
-// Categorie disponibili (corrispondono alle cartelle)
+// Categorie disponibili
 const CATEGORIE = [
-  'artisti',
+  'archivio',
   'committenti',
+  'documenti',
   'locali',
+  'ricevute',
   'agibilita',
   'fatture',
   'contratti',
-  'ricevute',
   'aziendale',
   'altro'
 ]
-
-interface DocumentoFS {
-  id: string
-  nome: string
-  nomeVisualizzato: string
-  path: string
-  fullPath: string
-  categoria: string
-  sottoCartella: string | null
-  dimensione: number
-  estensione: string
-  mimeType: string
-  createdAt: string
-  modifiedAt: string
-}
 
 // Determina MIME type dall'estensione
 function getMimeType(ext: string): string {
@@ -56,148 +45,104 @@ function getMimeType(ext: string): string {
   return mimeTypes[ext.toLowerCase()] || 'application/octet-stream'
 }
 
-// Genera ID univoco dal path
-function generateId(filePath: string): string {
-  return Buffer.from(filePath).toString('base64url')
-}
-
-// Scansiona ricorsivamente una cartella
-async function scanDirectory(
-  dirPath: string, 
-  categoria: string, 
-  sottoCartella: string | null = null
-): Promise<DocumentoFS[]> {
-  const documenti: DocumentoFS[] = []
-  
-  if (!existsSync(dirPath)) {
-    return documenti
-  }
-  
-  try {
-    const entries = await readdir(dirPath, { withFileTypes: true })
-    
-    for (const entry of entries) {
-      const fullPath = path.join(dirPath, entry.name)
-      
-      if (entry.isDirectory()) {
-        // Scansiona sottocartella (cliente)
-        const subDocs = await scanDirectory(fullPath, categoria, entry.name)
-        documenti.push(...subDocs)
-      } else if (entry.isFile()) {
-        // Ignora file nascosti e di sistema
-        if (entry.name.startsWith('.') || entry.name === 'Thumbs.db') {
-          continue
-        }
-        
-        try {
-          const fileStat = await stat(fullPath)
-          const ext = path.extname(entry.name).replace('.', '').toLowerCase()
-          const relativePath = fullPath.replace(path.join(process.cwd(), 'public'), '')
-          
-          documenti.push({
-            id: generateId(relativePath),
-            nome: entry.name,
-            nomeVisualizzato: entry.name.replace(/\.[^/.]+$/, ''), // Rimuovi estensione
-            path: relativePath.replace(/\\/g, '/'), // Normalizza per URL
-            fullPath,
-            categoria: categoria.toUpperCase(),
-            sottoCartella,
-            dimensione: fileStat.size,
-            estensione: ext,
-            mimeType: getMimeType(ext),
-            createdAt: fileStat.birthtime.toISOString(),
-            modifiedAt: fileStat.mtime.toISOString(),
-          })
-        } catch (err) {
-          console.error(`Errore stat file ${fullPath}:`, err)
-        }
-      }
-    }
-  } catch (err) {
-    console.error(`Errore lettura cartella ${dirPath}:`, err)
-  }
-  
-  return documenti
-}
-
-// GET - Lista documenti dal filesystem
+// GET - Lista documenti da Supabase Storage + DB
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const search = searchParams.get('search')?.toLowerCase()
     const categoria = searchParams.get('categoria')?.toLowerCase()
     const sottoCartella = searchParams.get('sottoCartella')
+
+    // Recupera documenti dal database
+    const whereClause: any = {}
     
-    let tuttiDocumenti: DocumentoFS[] = []
-    
-    // Se categoria specificata, scansiona solo quella cartella
-    if (categoria && CATEGORIE.includes(categoria)) {
-      const catPath = path.join(ARCHIVIO_BASE, categoria)
-      tuttiDocumenti = await scanDirectory(catPath, categoria)
-    } else {
-      // Scansiona tutte le categorie
-      for (const cat of CATEGORIE) {
-        const catPath = path.join(ARCHIVIO_BASE, cat)
-        if (existsSync(catPath)) {
-          const docs = await scanDirectory(catPath, cat)
-          tuttiDocumenti.push(...docs)
-        }
-      }
+    if (categoria) {
+      whereClause.categoria = categoria.toUpperCase()
     }
     
-    // Filtro per sottocartella (cliente)
+    if (search) {
+      whereClause.OR = [
+        { nome: { contains: search, mode: 'insensitive' } },
+        { nomeVisualizzato: { contains: search, mode: 'insensitive' } },
+        { tags: { contains: search, mode: 'insensitive' } },
+      ]
+    }
+
+    const documenti = await prisma.documento.findMany({
+      where: whereClause,
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        nome: true,
+        nomeVisualizzato: true,
+        path: true,
+        categoria: true,
+        dimensione: true,
+        estensione: true,
+        mimeType: true,
+        tags: true,
+        createdAt: true,
+        updatedAt: true,
+        artistaId: true,
+        committenteId: true,
+        localeId: true,
+        agibilitaId: true,
+      }
+    })
+
+    // Estrai sottocartella dal path (es: "committenti/NomeCliente/file.pdf" -> "NomeCliente")
+    const documentiConSottocartella = documenti.map(doc => {
+      const pathParts = doc.path.split('/')
+      const sottoCartella = pathParts.length > 2 ? pathParts[1] : null
+      return {
+        ...doc,
+        sottoCartella,
+        modifiedAt: doc.updatedAt.toISOString(),
+        createdAt: doc.createdAt.toISOString(),
+      }
+    })
+
+    // Filtro per sottocartella se specificato
+    let risultati = documentiConSottocartella
     if (sottoCartella) {
-      tuttiDocumenti = tuttiDocumenti.filter(d => 
+      risultati = risultati.filter(d => 
         d.sottoCartella?.toLowerCase() === sottoCartella.toLowerCase()
       )
     }
-    
-    // Filtro per ricerca
-    if (search) {
-      tuttiDocumenti = tuttiDocumenti.filter(d => 
-        d.nome.toLowerCase().includes(search) ||
-        d.nomeVisualizzato.toLowerCase().includes(search) ||
-        d.sottoCartella?.toLowerCase().includes(search)
-      )
-    }
-    
-    // Ordina per data modifica (più recenti prima)
-    tuttiDocumenti.sort((a, b) => 
-      new Date(b.modifiedAt).getTime() - new Date(a.modifiedAt).getTime()
-    )
-    
+
     // Statistiche per categoria
-    const statistiche: Record<string, number> = {}
-    for (const cat of CATEGORIE) {
-      const catPath = path.join(ARCHIVIO_BASE, cat)
-      if (existsSync(catPath)) {
-        const docs = await scanDirectory(catPath, cat)
-        statistiche[cat.toUpperCase()] = docs.length
-      } else {
-        statistiche[cat.toUpperCase()] = 0
-      }
-    }
+    const stats = await prisma.documento.groupBy({
+      by: ['categoria'],
+      _count: { id: true }
+    })
     
-    // Lista sottocartelle (clienti) per la categoria selezionata
+    const statistiche: Record<string, number> = {}
+    CATEGORIE.forEach(cat => {
+      const found = stats.find(s => s.categoria.toLowerCase() === cat)
+      statistiche[cat.toUpperCase()] = found?._count.id || 0
+    })
+
+    // Lista sottocartelle uniche per la categoria
     let sottoCartelle: string[] = []
     if (categoria) {
-      const catPath = path.join(ARCHIVIO_BASE, categoria)
-      if (existsSync(catPath)) {
-        try {
-          const entries = await readdir(catPath, { withFileTypes: true })
-          sottoCartelle = entries
-            .filter(e => e.isDirectory())
-            .map(e => e.name)
-            .sort()
-        } catch (err) {
-          console.error('Errore lettura sottocartelle:', err)
+      const docsInCategoria = await prisma.documento.findMany({
+        where: { categoria: categoria.toUpperCase() },
+        select: { path: true }
+      })
+      
+      const folders = new Set<string>()
+      docsInCategoria.forEach(doc => {
+        const parts = doc.path.split('/')
+        if (parts.length > 2) {
+          folders.add(parts[1])
         }
-      }
+      })
+      sottoCartelle = Array.from(folders).sort()
     }
-    
+
     return NextResponse.json({
-      documenti: tuttiDocumenti,
-      totale: tuttiDocumenti.length,
+      documenti: risultati,
+      totale: risultati.length,
       statistiche,
       sottoCartelle,
       categorie: CATEGORIE.map(c => c.toUpperCase()),
@@ -208,73 +153,73 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST - Upload documento
+// POST - Upload documento su Supabase Storage
 export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData()
     const file = formData.get('file') as File | null
     const categoria = (formData.get('categoria') as string || 'altro').toLowerCase()
     const sottoCartella = formData.get('sottoCartella') as string || null
+    const tags = formData.get('tags') as string || null
     
+    // Entità collegate (opzionali)
+    const artistaId = formData.get('artistaId') as string || null
+    const committenteId = formData.get('committenteId') as string || null
+    const localeId = formData.get('localeId') as string || null
+    const agibilitaId = formData.get('agibilitaId') as string || null
+
     if (!file) {
       return NextResponse.json({ error: 'Nessun file caricato' }, { status: 400 })
     }
-    
+
     // Verifica categoria valida
     if (!CATEGORIE.includes(categoria)) {
       return NextResponse.json({ error: 'Categoria non valida' }, { status: 400 })
     }
+
+    // Prepara nome file sicuro
+    const originalName = file.name
+    const safeName = originalName.replace(/[^a-zA-Z0-9._-]/g, '_')
+    const ext = safeName.split('.').pop()?.toLowerCase() || ''
     
-    // Costruisci percorso destinazione
-    let destDir = path.join(ARCHIVIO_BASE, categoria)
-    if (sottoCartella) {
-      destDir = path.join(destDir, sottoCartella)
-    }
+    // Costruisci path per Storage
+    const storagePath = buildStoragePath(categoria, safeName, sottoCartella)
     
-    // Crea cartella se non esiste
-    if (!existsSync(destDir)) {
-      await mkdir(destDir, { recursive: true })
-    }
-    
-    // Nome file (evita sovrascritture)
-    let fileName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_')
-    let filePath = path.join(destDir, fileName)
-    let counter = 1
-    
-    while (existsSync(filePath)) {
-      const ext = path.extname(fileName)
-      const base = path.basename(fileName, ext)
-      fileName = `${base}_${counter}${ext}`
-      filePath = path.join(destDir, fileName)
-      counter++
-    }
-    
-    // Salva file
+    // Leggi file come buffer
     const bytes = await file.arrayBuffer()
     const buffer = Buffer.from(bytes)
-    await writeFile(filePath, buffer)
     
-    // Leggi stat del file appena creato
-    const fileStat = await stat(filePath)
-    const ext = path.extname(fileName).replace('.', '').toLowerCase()
-    const relativePath = filePath.replace(path.join(process.cwd(), 'public'), '')
+    // Upload su Supabase Storage
+    const uploadResult = await uploadFile(buffer, storagePath, getMimeType(ext))
     
-    const documento: DocumentoFS = {
-      id: generateId(relativePath),
-      nome: fileName,
-      nomeVisualizzato: fileName.replace(/\.[^/.]+$/, ''),
-      path: relativePath.replace(/\\/g, '/'),
-      fullPath: filePath,
-      categoria: categoria.toUpperCase(),
-      sottoCartella,
-      dimensione: fileStat.size,
-      estensione: ext,
-      mimeType: getMimeType(ext),
-      createdAt: fileStat.birthtime.toISOString(),
-      modifiedAt: fileStat.mtime.toISOString(),
+    if (!uploadResult.success) {
+      return NextResponse.json({ error: uploadResult.error || 'Errore upload' }, { status: 500 })
     }
-    
-    return NextResponse.json(documento, { status: 201 })
+
+    // Salva metadata nel database
+    const documento = await prisma.documento.create({
+      data: {
+        nome: safeName,
+        nomeVisualizzato: originalName.replace(/\.[^/.]+$/, ''),
+        path: uploadResult.path!,
+        categoria: categoria.toUpperCase() as any,
+        dimensione: buffer.length,
+        estensione: ext,
+        mimeType: getMimeType(ext),
+        tags,
+        artistaId,
+        committenteId,
+        localeId,
+        agibilitaId,
+      }
+    })
+
+    return NextResponse.json({
+      ...documento,
+      sottoCartella,
+      modifiedAt: documento.updatedAt.toISOString(),
+      createdAt: documento.createdAt.toISOString(),
+    }, { status: 201 })
   } catch (error) {
     console.error('Errore upload documento:', error)
     return NextResponse.json({ error: 'Errore nell\'upload del documento' }, { status: 500 })

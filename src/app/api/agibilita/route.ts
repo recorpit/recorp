@@ -194,11 +194,24 @@ export async function POST(request: NextRequest) {
     let totaleLordi = 0
     let totaleRitenute = 0
     
-    // DEBUG
+    /// DEBUG
     console.log('=== DEBUG ARTISTI RICEVUTI ===')
     console.log(JSON.stringify(body.artisti, null, 2))
     
-    const artistiData = body.artisti.map((a: any) => {
+    // Deduplica artisti: stesso artista + stessa dataInizio = duplicato
+    const artistiUnici = new Map<string, any>()
+    body.artisti.forEach((a: any) => {
+      const chiave = `${a.artistaId}|${a.dataInizio || body.data}`
+      if (!artistiUnici.has(chiave)) {
+        artistiUnici.set(chiave, a)
+      } else {
+        console.log(`DUPLICATO RIMOSSO: ${chiave}`)
+      }
+    })
+    const artistiDedupe = Array.from(artistiUnici.values())
+    console.log(`Artisti dopo dedupe: ${artistiDedupe.length} (erano ${body.artisti.length})`)
+    
+    const artistiData = artistiDedupe.map((a: any) => {
       const artista = artistiMap.get(a.artistaId)!
       const compensi = calcolaCompensi({ netto: parseFloat(a.compensoNetto || '0') }, 0)
       
@@ -233,7 +246,7 @@ export async function POST(request: NextRequest) {
     totaleRitenute = round2(totaleRitenute)
     
     // Calcola quota agenzia (quota fissa × numero prestazioni) e importo fattura
-    const numPrestazioni = body.artisti.length
+    const numPrestazioni = artistiDedupe.length
     const quotaAgenzia = round2(quotaUnitaria * numPrestazioni)
     const importoFattura = round2(totaleLordi + quotaAgenzia)
     

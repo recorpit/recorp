@@ -194,6 +194,10 @@ export async function POST(request: NextRequest) {
     let totaleLordi = 0
     let totaleRitenute = 0
     
+    // DEBUG
+    console.log('=== DEBUG ARTISTI RICEVUTI ===')
+    console.log(JSON.stringify(body.artisti, null, 2))
+    
     const artistiData = body.artisti.map((a: any) => {
       const artista = artistiMap.get(a.artistaId)!
       const compensi = calcolaCompensi({ netto: parseFloat(a.compensoNetto || '0') }, 0)

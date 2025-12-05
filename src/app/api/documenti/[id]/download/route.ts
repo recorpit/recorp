@@ -43,7 +43,7 @@ export async function GET(
     }
 
     // Ritorna file per download
-    return new NextResponse(fileBuffer, {
+    return new NextResponse(new Uint8Array(fileBuffer), {
       headers: {
         'Content-Type': documento.mimeType || 'application/octet-stream',
         'Content-Disposition': `attachment; filename="${encodeURIComponent(documento.nome)}"`,

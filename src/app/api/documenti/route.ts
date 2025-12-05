@@ -3,10 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { 
   uploadFile, 
-  listFiles, 
   buildStoragePath,
-  getStorageClient,
-  STORAGE_BUCKET
 } from '@/lib/supabase/storage'
 
 // Categorie disponibili
@@ -91,12 +88,12 @@ export async function GET(request: NextRequest) {
     })
 
     // Estrai sottocartella dal path (es: "committenti/NomeCliente/file.pdf" -> "NomeCliente")
-    const documentiConSottocartella = documenti.map(doc => {
+    const documentiConSottocartella = documenti.map((doc: any) => {
       const pathParts = doc.path.split('/')
-      const sottoCartella = pathParts.length > 2 ? pathParts[1] : null
+      const sottoCartellaDoc = pathParts.length > 2 ? pathParts[1] : null
       return {
         ...doc,
-        sottoCartella,
+        sottoCartella: sottoCartellaDoc,
         modifiedAt: doc.updatedAt.toISOString(),
         createdAt: doc.createdAt.toISOString(),
       }
@@ -105,7 +102,7 @@ export async function GET(request: NextRequest) {
     // Filtro per sottocartella se specificato
     let risultati = documentiConSottocartella
     if (sottoCartella) {
-      risultati = risultati.filter(d => 
+      risultati = risultati.filter((d: any) => 
         d.sottoCartella?.toLowerCase() === sottoCartella.toLowerCase()
       )
     }
@@ -118,7 +115,7 @@ export async function GET(request: NextRequest) {
     
     const statistiche: Record<string, number> = {}
     CATEGORIE.forEach(cat => {
-      const found = stats.find(s => s.categoria.toLowerCase() === cat)
+      const found = stats.find((s: any) => s.categoria.toLowerCase() === cat)
       statistiche[cat.toUpperCase()] = found?._count.id || 0
     })
 
@@ -126,12 +123,12 @@ export async function GET(request: NextRequest) {
     let sottoCartelle: string[] = []
     if (categoria) {
       const docsInCategoria = await prisma.documento.findMany({
-        where: { categoria: categoria.toUpperCase() },
+        where: { categoria: categoria.toUpperCase() as any },
         select: { path: true }
       })
       
       const folders = new Set<string>()
-      docsInCategoria.forEach(doc => {
+      docsInCategoria.forEach((doc: any) => {
         const parts = doc.path.split('/')
         if (parts.length > 2) {
           folders.add(parts[1])

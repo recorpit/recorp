@@ -217,8 +217,8 @@ export async function POST(request: NextRequest) {
         ritenuta: compensi.ritenuta,
         statoPagamento: committente?.aRischio ? 'IN_ATTESA_INCASSO' : 'DA_PAGARE',
         scadenzaPagamento,
-        // Date individuali (opzionali)
-        dataInizio: a.dataInizio ? new Date(a.dataInizio) : null,
+        // Date individuali - usa dataInizio se presente, altrimenti data principale
+        dataInizio: a.dataInizio ? new Date(a.dataInizio) : new Date(body.data),
         dataFine: a.dataFine ? new Date(a.dataFine) : null,
       }
     })

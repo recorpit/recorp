@@ -599,7 +599,7 @@ model ArtistaAgibilita {
   agibilitaRaggruppamento      AgibilitaRaggruppamento[]
   dettagliPresenzaFullTime     DettaglioPresenzaFullTime[]
 
-  @@unique([agibilitaId, artistaId])
+  @@unique([agibilitaId, artistaId, dataInizio])
   @@index([agibilitaId])
   @@index([artistaId])
   @@index([statoPagamento])

@@ -658,10 +658,29 @@ export default function NuovaAgibilitaPage() {
       return
     }
     
-    // Verifica qualifiche "ALTRO" - blocca solo se ci sono
-    const artistiConQualificaAltro = tuttiArtisti.filter(a => !isQualificaValida(a.qualifica))
-    if (artistiConQualificaAltro.length > 0) {
-      setError(`Modifica la qualifica per: ${artistiConQualificaAltro.map(a => `${a.cognome} ${a.nome}`).join(', ')}`)
+    // Verifica duplicati: stesso artista nello stesso giorno (dataInizio)
+    const artistiPerData = new Map<string, string[]>()
+    periodi.forEach(p => {
+      p.artisti.forEach(a => {
+        const chiave = `${a.id}-${p.dataInizio}`
+        if (!artistiPerData.has(chiave)) {
+          artistiPerData.set(chiave, [])
+        }
+        artistiPerData.get(chiave)!.push(`${a.cognome} ${a.nome}`)
+      })
+    })
+    
+    const duplicati: string[] = []
+    artistiPerData.forEach((nomi, chiave) => {
+      if (nomi.length > 1) {
+        const [artistaId, data] = chiave.split('-')
+        const artista = tuttiArtisti.find(a => a.id === artistaId)
+        duplicati.push(`${artista?.cognome} ${artista?.nome} il ${new Date(data).toLocaleDateString('it-IT')}`)
+      }
+    })
+    
+    if (duplicati.length > 0) {
+      setError(`Lo stesso artista non può essere inserito due volte nello stesso giorno: ${duplicati.join(', ')}`)
       setLoading(false)
       window.scrollTo({ top: 0, behavior: 'smooth' })
       return

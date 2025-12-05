@@ -692,6 +692,12 @@ export default function NuovaAgibilitaPage() {
     const dataMinima = tutteLeDateInizio.sort()[0]
     const dataMassima = tutteLeDateFine.sort().reverse()[0]
     
+    // DEBUG - rimuovere dopo
+    console.log('Artisti da inviare:', tuttiArtisti.map(a => {
+      const periodo = periodi.find(p => p.artisti.some(art => art.id === a.id))
+      return { artistaId: a.id, nome: `${a.cognome} ${a.nome}`, dataInizio: periodo?.dataInizio }
+    }))
+    
     try {
       const res = await fetch('/api/agibilita', {
         method: 'POST',

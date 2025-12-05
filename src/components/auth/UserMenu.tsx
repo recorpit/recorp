@@ -1,40 +1,34 @@
 // src/components/auth/UserMenu.tsx
+// Menu utente per header/sidebar
+
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
-import Link from 'next/link'
-import { User, LogOut, Settings, ChevronDown } from 'lucide-react'
-import { createClient } from '@/lib/supabase/client'
+import { signOut } from 'next-auth/react'
 import { useCurrentUser } from '@/hooks/useCurrentUser'
+import { User, LogOut, Settings, ChevronDown } from 'lucide-react'
+import Link from 'next/link'
 
 export function UserMenu() {
-  const router = useRouter()
-  const supabase = createClient()
-  const { user, loading } = useCurrentUser()
+  const { user, isLoading } = useCurrentUser()
   const [isOpen, setIsOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
   
-  // Chiudi menu al click fuori
+  // Chiudi menu quando si clicca fuori
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
         setIsOpen(false)
       }
     }
+    
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
   
-  const handleLogout = async () => {
-    await supabase.auth.signOut()
-    router.push('/login')
-    router.refresh()
-  }
-  
-  if (loading) {
+  if (isLoading) {
     return (
-      <div className="w-8 h-8 bg-gray-700 rounded-full animate-pulse" />
+      <div className="w-8 h-8 rounded-full bg-gray-200 animate-pulse"></div>
     )
   }
   
@@ -42,63 +36,80 @@ export function UserMenu() {
     return (
       <Link
         href="/login"
-        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+        className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
       >
+        <User size={18} />
         Accedi
       </Link>
     )
   }
   
-  const initials = `${user.nome?.[0] || ''}${user.cognome?.[0] || ''}`.toUpperCase()
+  const initials = `${user.nome[0]}${user.cognome[0]}`.toUpperCase()
+  
+  const handleLogout = async () => {
+    await signOut({ callbackUrl: '/login' })
+  }
   
   return (
     <div className="relative" ref={menuRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-700 transition-colors"
+        className="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-100 transition-colors"
       >
-        <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white text-sm font-medium">
-          {initials || <User className="w-4 h-4" />}
+        {/* Avatar */}
+        <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white text-sm font-medium">
+          {initials}
         </div>
-        <span className="text-gray-200 hidden sm:block">{user.nome}</span>
-        <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        
+        {/* Nome (nascosto su mobile) */}
+        <div className="hidden md:block text-left">
+          <p className="text-sm font-medium text-gray-900">{user.nomeCompleto}</p>
+          <p className="text-xs text-gray-500">{user.ruolo}</p>
+        </div>
+        
+        <ChevronDown 
+          size={16} 
+          className={`text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} 
+        />
       </button>
       
+      {/* Dropdown Menu */}
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-56 bg-gray-800 border border-gray-700 rounded-lg shadow-xl z-50">
-          <div className="p-3 border-b border-gray-700">
-            <p className="text-white font-medium">{user.nome} {user.cognome}</p>
-            <p className="text-gray-400 text-sm">{user.email}</p>
-            <span className="inline-block mt-1 px-2 py-0.5 bg-blue-600/20 text-blue-400 text-xs rounded">
-              {user.ruolo}
-            </span>
+        <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-100 py-1 z-50">
+          {/* Header utente */}
+          <div className="px-4 py-3 border-b border-gray-100">
+            <p className="text-sm font-medium text-gray-900">{user.nomeCompleto}</p>
+            <p className="text-xs text-gray-500 truncate">{user.email}</p>
           </div>
           
-          <div className="p-2">
+          {/* Links */}
+          <div className="py-1">
             <Link
               href="/profilo"
               onClick={() => setIsOpen(false)}
-              className="flex items-center gap-2 px-3 py-2 text-gray-300 hover:bg-gray-700 rounded-lg transition-colors"
+              className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
             >
-              <User className="w-4 h-4" />
-              Profilo
+              <User size={16} />
+              Il mio profilo
             </Link>
+            
             <Link
               href="/impostazioni"
               onClick={() => setIsOpen(false)}
-              className="flex items-center gap-2 px-3 py-2 text-gray-300 hover:bg-gray-700 rounded-lg transition-colors"
+              className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
             >
-              <Settings className="w-4 h-4" />
+              <Settings size={16} />
               Impostazioni
             </Link>
           </div>
           
-          <div className="p-2 border-t border-gray-700">
+          {/* Logout */}
+          <div className="border-t border-gray-100 py-1">
             <button
               onClick={handleLogout}
-              className="flex items-center gap-2 w-full px-3 py-2 text-red-400 hover:bg-red-900/20 rounded-lg transition-colors"
+              className="flex items-center gap-3 w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
             >
-              <LogOut className="w-4 h-4" />
+              <LogOut size={16} />
               Esci
             </button>
           </div>

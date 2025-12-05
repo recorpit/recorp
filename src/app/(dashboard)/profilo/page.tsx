@@ -2,15 +2,12 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useSession } from 'next-auth/react'
 import { User, Mail, Shield, Calendar, Save, Eye, EyeOff, Lock, CheckCircle, AlertCircle, Loader2 } from 'lucide-react'
-import { useCurrentUser } from '@/hooks/useCurrentUser'
-import { createClient } from '@/lib/supabase/client'
 
 export default function ProfiloPage() {
-  const router = useRouter()
-  const supabase = createClient()
-  const { user, loading: userLoading } = useCurrentUser()
+  const { data: session, update: updateSession } = useSession()
+  const user = session?.user
   
   const [loading, setLoading] = useState(false)
   const [loadingPassword, setLoadingPassword] = useState(false)
@@ -26,10 +23,12 @@ export default function ProfiloPage() {
   
   // Form cambio password
   const [passwordForm, setPasswordForm] = useState({
+    passwordAttuale: '',
     nuovaPassword: '',
     confermaPassword: '',
   })
   const [showPasswords, setShowPasswords] = useState({
+    attuale: false,
     nuova: false,
     conferma: false,
   })
@@ -81,11 +80,18 @@ export default function ProfiloPage() {
         throw new Error(data.error || 'Errore aggiornamento profilo')
       }
       
+      // Aggiorna sessione
+      await updateSession({
+        ...session,
+        user: {
+          ...session?.user,
+          nome: form.nome,
+          cognome: form.cognome,
+        }
+      })
+      
       setSuccess('Profilo aggiornato con successo!')
       setTimeout(() => setSuccess(''), 3000)
-      
-      // Refresh pagina per aggiornare dati
-      router.refresh()
       
     } catch (err: any) {
       setError(err.message)
@@ -94,7 +100,7 @@ export default function ProfiloPage() {
     }
   }
   
-  // Cambia password con Supabase
+  // Cambia password
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault()
     
@@ -113,16 +119,24 @@ export default function ProfiloPage() {
     setSuccess('')
     
     try {
-      const { error: updateError } = await supabase.auth.updateUser({
-        password: passwordForm.nuovaPassword
+      const res = await fetch('/api/auth/cambio-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          passwordAttuale: passwordForm.passwordAttuale,
+          nuovaPassword: passwordForm.nuovaPassword,
+        }),
       })
       
-      if (updateError) {
-        throw new Error(updateError.message)
+      const data = await res.json()
+      
+      if (!res.ok) {
+        throw new Error(data.error || 'Errore cambio password')
       }
       
       setSuccess('Password cambiata con successo!')
       setPasswordForm({
+        passwordAttuale: '',
         nuovaPassword: '',
         confermaPassword: '',
       })
@@ -135,7 +149,7 @@ export default function ProfiloPage() {
     }
   }
   
-  if (userLoading || !user) {
+  if (!user) {
     return (
       <div className="flex items-center justify-center h-64">
         <Loader2 className="animate-spin text-blue-600" size={32} />
@@ -191,6 +205,10 @@ export default function ProfiloPage() {
               <div className="flex items-center gap-3 text-gray-600">
                 <Shield size={18} />
                 <span className="text-sm">Ruolo: {user.ruolo}</span>
+              </div>
+              <div className="flex items-center gap-3 text-gray-600">
+                <Calendar size={18} />
+                <span className="text-sm">Membro dal {new Date().toLocaleDateString('it-IT')}</span>
               </div>
             </div>
           </div>
@@ -271,6 +289,28 @@ export default function ProfiloPage() {
             </h3>
             
             <form onSubmit={handleChangePassword} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Password Attuale
+                </label>
+                <div className="relative">
+                  <input
+                    type={showPasswords.attuale ? 'text' : 'password'}
+                    value={passwordForm.passwordAttuale}
+                    onChange={(e) => setPasswordForm(prev => ({ ...prev, passwordAttuale: e.target.value }))}
+                    required
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPasswords(prev => ({ ...prev, attuale: !prev.attuale }))}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  >
+                    {showPasswords.attuale ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
+              </div>
+              
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -334,7 +374,7 @@ export default function ProfiloPage() {
               <div className="flex justify-end">
                 <button
                   type="submit"
-                  disabled={loadingPassword || !passwordValidation.valid || !passwordsMatch}
+                  disabled={loadingPassword || !passwordValidation.valid || !passwordsMatch || !passwordForm.passwordAttuale}
                   className="flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {loadingPassword ? (

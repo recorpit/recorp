@@ -3,15 +3,11 @@
 
 import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useSession, signOut } from 'next-auth/react'
 import { User, LogOut, ChevronDown, Settings, Loader2 } from 'lucide-react'
-import { createClient } from '@/lib/supabase/client'
-import { useCurrentUser } from '@/hooks/useCurrentUser'
 
 export default function Header() {
-  const router = useRouter()
-  const supabase = createClient()
-  const { user, loading } = useCurrentUser()
+  const { data: session, status } = useSession()
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
 
@@ -28,13 +24,11 @@ export default function Header() {
 
   const handleLogout = async () => {
     setDropdownOpen(false)
-    await supabase.auth.signOut()
-    router.push('/login')
-    router.refresh()
+    await signOut({ callbackUrl: '/login' })
   }
 
   // Loading state
-  if (loading) {
+  if (status === 'loading') {
     return (
       <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-end px-6 sticky top-0 z-30">
         <div className="flex items-center gap-2 text-gray-400">
@@ -45,7 +39,8 @@ export default function Header() {
     )
   }
 
-  // Dati utente
+  // Dati utente dalla sessione
+  const user = session?.user
   const userName = user ? `${user.nome} ${user.cognome}` : 'Utente'
   const userEmail = user?.email || ''
   const userRole = user?.ruolo || ''

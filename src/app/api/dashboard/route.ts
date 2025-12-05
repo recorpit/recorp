@@ -1,4 +1,4 @@
-// src/app/api/dashboard/route.ts
+﻿// src/app/api/dashboard/route.ts
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 
@@ -199,15 +199,15 @@ export async function GET(request: NextRequest) {
     })
     
     // Arricchisci con nomi committenti
-    const committentiIds = topCommittenti.map((c: any) => c.committenteId)
+    const committentiIds = topCommittenti.map(c => c.committenteId)
     const committenti = await prisma.committente.findMany({
-      where: { id: { in: committentiIds.filter((id: any): id is string => id !== null) } },
+      where: { id: { in: committentiIds.filter((id): id is string => id !== null) } },
       select: { id: true, ragioneSociale: true }
     })
     
-    const topCommittentiConNome = topCommittenti.map((c: any) => ({
+    const topCommittentiConNome = topCommittenti.map(c => ({
       ...c,
-      ragioneSociale: committenti.find((comm: any) => comm.id === c.committenteId)?.ragioneSociale || 'N/A',
+      ragioneSociale: committenti.find(comm => comm.id === c.committenteId)?.ragioneSociale || 'N/A',
       fatturato: parseFloat(c._sum.importoFattura?.toString() || '0'),
     }))
     
@@ -284,7 +284,7 @@ export async function GET(request: NextRequest) {
         prenotazioni: prenotazioniAttive,
       },
       topCommittenti: topCommittentiConNome,
-      prossimiPagamenti: prossimiPagamentiArtisti.map((p: any) => ({
+      prossimiPagamenti: prossimiPagamentiArtisti.map(p => ({
         id: p.agibilita.id,
         codice: p.agibilita.codice,
         artista: p.artista.nomeDarte || `${p.artista.nome} ${p.artista.cognome}`,

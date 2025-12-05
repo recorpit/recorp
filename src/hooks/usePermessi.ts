@@ -2,21 +2,21 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { useCurrentUser } from './useCurrentUser'
+import { useSession } from 'next-auth/react'
 
 export function usePermessi() {
-  const { user } = useCurrentUser()
+  const { data: session } = useSession()
   const [permessi, setPermessi] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(true)
   
   useEffect(() => {
-    if (user?.id) {
+    if (session?.user?.id) {
       loadPermessi()
     } else {
       setPermessi(new Set())
       setLoading(false)
     }
-  }, [user?.id])
+  }, [session?.user?.id])
   
   const loadPermessi = async () => {
     try {

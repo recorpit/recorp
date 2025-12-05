@@ -5,7 +5,6 @@ import { useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft, Eye, EyeOff, CheckCircle, XCircle, AlertCircle, Loader2 } from 'lucide-react'
-import { createClient } from '@/lib/supabase/client'
 
 // Qualifiche disponibili
 const QUALIFICHE = [
@@ -53,7 +52,6 @@ export default function RegistrazioneArtistaPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const token = searchParams.get('token')
-  const supabase = createClient()
   
   const [loading, setLoading] = useState(false)
   const [loadingInvito, setLoadingInvito] = useState(!!token)
@@ -168,33 +166,11 @@ export default function RegistrazioneArtistaPage() {
     setLoading(true)
     
     try {
-      // 1. Registra su Supabase Auth
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: form.email,
-        password: form.password,
-        options: {
-          data: {
-            nome: form.nome,
-            cognome: form.cognome,
-            tipo: 'ARTISTA',
-          }
-        }
-      })
-      
-      if (authError) {
-        if (authError.message.includes('already registered')) {
-          throw new Error('Email già registrata')
-        }
-        throw new Error(authError.message)
-      }
-      
-      // 2. Crea record nel DB
       const res = await fetch('/api/auth/registrazione/artista', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...form,
-          supabaseUserId: authData.user?.id,
           token, // Includi token invito se presente
         })
       })
@@ -224,23 +200,21 @@ export default function RegistrazioneArtistaPage() {
   if (success) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center p-4">
-        <div className="max-w-md w-full">
-          <div className="bg-gray-800/50 backdrop-blur border border-gray-700 rounded-2xl p-8 text-center">
-            <div className="w-20 h-20 bg-green-600/20 rounded-full flex items-center justify-center mx-auto mb-6">
-              <CheckCircle className="w-10 h-10 text-green-400" />
-            </div>
-            <h1 className="text-2xl font-bold text-white mb-3">Registrazione Completata!</h1>
-            <p className="text-gray-400 mb-6">
-              Ti abbiamo inviato un'email di conferma a <strong className="text-white">{form.email}</strong>.
-              Clicca sul link nell'email per attivare il tuo account.
-            </p>
-            <Link 
-              href="/login"
-              className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              Vai al Login
-            </Link>
+        <div className="max-w-md w-full bg-gray-800 rounded-2xl p-8 text-center">
+          <div className="w-16 h-16 bg-green-600/20 rounded-full flex items-center justify-center mx-auto mb-6">
+            <CheckCircle className="w-8 h-8 text-green-400" />
           </div>
+          <h1 className="text-2xl font-bold text-white mb-3">Registrazione Completata!</h1>
+          <p className="text-gray-400 mb-6">
+            Ti abbiamo inviato un'email di verifica all'indirizzo <strong className="text-white">{form.email}</strong>.
+            Clicca sul link nell'email per verificare il tuo account.
+          </p>
+          <Link 
+            href="/login"
+            className="inline-flex items-center justify-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            Vai al Login
+          </Link>
         </div>
       </div>
     )
@@ -252,21 +226,28 @@ export default function RegistrazioneArtistaPage() {
         {/* Header */}
         <div className="mb-8">
           <Link 
-            href="/registrazione" 
-            className="inline-flex items-center gap-2 text-gray-400 hover:text-white transition-colors mb-6"
+            href="/registrazione"
+            className="inline-flex items-center gap-2 text-gray-400 hover:text-white transition-colors mb-4"
           >
-            <ArrowLeft size={20} />
+            <ArrowLeft className="w-4 h-4" />
             Torna alla scelta
           </Link>
-          <h1 className="text-3xl font-bold text-white mb-2">Registrazione Artista</h1>
-          <p className="text-gray-400">Compila tutti i campi per completare la registrazione</p>
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 bg-blue-600 rounded-xl flex items-center justify-center">
+              <span className="text-2xl">🎤</span>
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold text-white">Registrazione Artista</h1>
+              <p className="text-gray-400">Compila tutti i campi per registrarti</p>
+            </div>
+          </div>
         </div>
         
-        {/* Errore globale */}
+        {/* Errore */}
         {error && (
           <div className="mb-6 p-4 bg-red-900/50 border border-red-700 rounded-lg flex items-center gap-3">
             <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0" />
-            <p className="text-red-300 text-sm">{error}</p>
+            <p className="text-red-300">{error}</p>
           </div>
         )}
         
@@ -317,11 +298,19 @@ export default function RegistrazioneArtistaPage() {
                   value={form.telefono}
                   onChange={handleChange}
                   required
+                  placeholder="+39..."
                   className="w-full px-4 py-2.5 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1">Codice Fiscale *</label>
+                <label className="block text-sm font-medium text-gray-300 mb-1">
+                  Codice Fiscale *
+                  {form.codiceFiscale && (
+                    cfValid 
+                      ? <CheckCircle className="w-4 h-4 text-green-400 inline ml-2" />
+                      : <XCircle className="w-4 h-4 text-red-400 inline ml-2" />
+                  )}
+                </label>
                 <input
                   type="text"
                   name="codiceFiscale"
@@ -329,13 +318,8 @@ export default function RegistrazioneArtistaPage() {
                   onChange={handleChange}
                   required
                   maxLength={16}
-                  className={`w-full px-4 py-2.5 bg-gray-700 border rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent uppercase ${
-                    form.codiceFiscale && !cfValid ? 'border-red-500' : 'border-gray-600'
-                  }`}
+                  className="w-full px-4 py-2.5 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent uppercase"
                 />
-                {form.codiceFiscale && !cfValid && (
-                  <p className="mt-1 text-xs text-red-400">Codice fiscale non valido</p>
-                )}
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-1">Data di Nascita *</label>
@@ -368,7 +352,7 @@ export default function RegistrazioneArtistaPage() {
                   onChange={handleChange}
                   required
                   maxLength={2}
-                  placeholder="ES: VI"
+                  placeholder="MI"
                   className="w-full px-4 py-2.5 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent uppercase"
                 />
               </div>
@@ -387,7 +371,7 @@ export default function RegistrazioneArtistaPage() {
                   value={form.indirizzoResidenza}
                   onChange={handleChange}
                   required
-                  placeholder="Via/Piazza e numero civico"
+                  placeholder="Via/Piazza..."
                   className="w-full px-4 py-2.5 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
@@ -402,30 +386,32 @@ export default function RegistrazioneArtistaPage() {
                   className="w-full px-4 py-2.5 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1">Provincia *</label>
-                <input
-                  type="text"
-                  name="provinciaResidenza"
-                  value={form.provinciaResidenza}
-                  onChange={handleChange}
-                  required
-                  maxLength={2}
-                  placeholder="ES: VI"
-                  className="w-full px-4 py-2.5 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent uppercase"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1">CAP *</label>
-                <input
-                  type="text"
-                  name="capResidenza"
-                  value={form.capResidenza}
-                  onChange={handleChange}
-                  required
-                  maxLength={5}
-                  className="w-full px-4 py-2.5 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-1">Provincia *</label>
+                  <input
+                    type="text"
+                    name="provinciaResidenza"
+                    value={form.provinciaResidenza}
+                    onChange={handleChange}
+                    required
+                    maxLength={2}
+                    placeholder="MI"
+                    className="w-full px-4 py-2.5 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent uppercase"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-1">CAP *</label>
+                  <input
+                    type="text"
+                    name="capResidenza"
+                    value={form.capResidenza}
+                    onChange={handleChange}
+                    required
+                    maxLength={5}
+                    className="w-full px-4 py-2.5 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
               </div>
             </div>
           </div>

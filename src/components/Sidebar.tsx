@@ -4,7 +4,7 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname } from 'next/navigation'
-import { useCurrentUser } from '@/hooks/useCurrentUser'
+import { useSession } from 'next-auth/react'
 import { 
   LayoutDashboard, 
   Users, 
@@ -154,7 +154,7 @@ const menuSections: MenuSection[] = [
 
 export default function Sidebar() {
   const pathname = usePathname()
-  const { user, loading } = useCurrentUser()
+  const { data: session, status } = useSession()
   const [collapsed, setCollapsed] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
   const [expandedSection, setExpandedSection] = useState<string | null>(null)
@@ -168,10 +168,10 @@ export default function Sidebar() {
 
   // Carica permessi utente
   useEffect(() => {
-    if (user?.id) {
+    if (session?.user?.id) {
       loadPermessi()
     }
-  }, [user?.id])
+  }, [session?.user?.id])
 
   const loadPermessi = async () => {
     try {
@@ -189,7 +189,7 @@ export default function Sidebar() {
 
   const haPermesso = (permesso?: string): boolean => {
     if (!permesso) return true
-    if (user?.ruolo === 'ADMIN') return true
+    if (session?.user?.ruolo === 'ADMIN') return true
     return permessi.has(permesso)
   }
 
@@ -208,7 +208,7 @@ export default function Sidebar() {
         return section
       })
       .filter(Boolean) as MenuSection[]
-  }, [permessi, user?.ruolo])
+  }, [permessi, session?.user?.ruolo])
 
   const toggleSection = (sectionId: string) => {
     if (expandedSection === sectionId) {
@@ -226,14 +226,14 @@ export default function Sidebar() {
   }
 
   // Loading
-  if (loading || !permessiLoaded) {
+  if (status === 'loading' || !permessiLoaded) {
     return (
       <>
         {/* Mobile header placeholder */}
         <div className="lg:hidden fixed top-0 left-0 right-0 h-14 bg-gray-900 z-50" />
         {/* Desktop sidebar placeholder */}
         <aside className="hidden lg:block bg-gray-900 text-white h-screen fixed left-0 top-0 w-64 z-40">
-          <div className="flex items-center justify-center h-full">
+          <div className="h-16 flex items-center justify-center border-b border-gray-800">
             <Loader2 className="animate-spin text-gray-400" size={24} />
           </div>
         </aside>
@@ -243,10 +243,12 @@ export default function Sidebar() {
 
   const sidebarContent = (
     <>
-      {/* Logo */}
-      <div className="h-16 flex items-center justify-between px-4 border-b border-gray-800">
+      {/* Header */}
+      <div className="h-16 flex items-center justify-between px-4 border-b border-gray-800 sticky top-0 bg-gray-900 z-10">
         {!collapsed && (
-          <Image src="/logo.png" alt="RECORP" width={120} height={32} className="brightness-0 invert" />
+          <div className="flex items-center gap-2">
+            <Image src="/logo.png" alt="RECORP" width={120} height={32} className="brightness-0 invert" />
+          </div>
         )}
         {collapsed && (
           <Image src="/logo.png" alt="RECORP" width={32} height={32} className="brightness-0 invert mx-auto" />

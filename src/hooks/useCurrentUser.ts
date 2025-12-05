@@ -1,79 +1,62 @@
 // src/hooks/useCurrentUser.ts
+// Hook per accedere all'utente corrente
+
 'use client'
 
-import { useEffect, useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import { useSession } from 'next-auth/react'
 import type { RuoloUtente } from '@prisma/client'
 
-export interface AppUser {
+interface CurrentUser {
   id: string
   email: string
   nome: string
   cognome: string
   ruolo: RuoloUtente
+  nomeCompleto: string
+  isAdmin: boolean
 }
 
-// Helper per verificare ruoli
-export function hasRole(userRole: RuoloUtente, allowedRoles: RuoloUtente[]): boolean {
-  return allowedRoles.includes(userRole)
+export function useCurrentUser(): {
+  user: CurrentUser | null
+  isLoading: boolean
+  isAuthenticated: boolean
+} {
+  const { data: session, status } = useSession()
+  
+  const isLoading = status === 'loading'
+  const isAuthenticated = status === 'authenticated'
+  
+  if (!session?.user) {
+    return { user: null, isLoading, isAuthenticated: false }
+  }
+  
+  const user: CurrentUser = {
+    id: session.user.id,
+    email: session.user.email,
+    nome: session.user.nome,
+    cognome: session.user.cognome,
+    ruolo: session.user.ruolo,
+    nomeCompleto: `${session.user.nome} ${session.user.cognome}`,
+    isAdmin: session.user.ruolo === 'ADMIN',
+  }
+  
+  return { user, isLoading, isAuthenticated }
 }
 
-export function useCurrentUser() {
-  const [user, setUser] = useState<AppUser | null>(null)
-  const [loading, setLoading] = useState(true)
-  const supabase = createClient()
+// Utility per verificare permessi
+export function hasRole(userRuolo: RuoloUtente, allowedRoles: RuoloUtente[]): boolean {
+  return allowedRoles.includes(userRuolo)
+}
 
-  useEffect(() => {
-    const getUser = async () => {
-      try {
-        // Ottieni utente Supabase
-        const { data: { user: supabaseUser } } = await supabase.auth.getUser()
-        
-        if (!supabaseUser) {
-          setUser(null)
-          setLoading(false)
-          return
-        }
-
-        // Ottieni dati utente dal DB
-        const res = await fetch('/api/auth/profilo')
-        if (res.ok) {
-          const data = await res.json()
-          setUser(data)
-        } else {
-          setUser(null)
-        }
-      } catch (error) {
-        console.error('Errore fetch user:', error)
-        setUser(null)
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    getUser()
-
-    // Ascolta cambiamenti auth
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (event === 'SIGNED_OUT') {
-          setUser(null)
-        } else if (event === 'SIGNED_IN' && session?.user) {
-          // Ricarica dati utente
-          const res = await fetch('/api/auth/profilo')
-          if (res.ok) {
-            const data = await res.json()
-            setUser(data)
-          }
-        }
-      }
-    )
-
-    return () => {
-      subscription.unsubscribe()
-    }
-  }, [])
-
-  // Esporta sia loading che isLoading per compatibilità
-  return { user, loading, isLoading: loading }
+// Gerarchia ruoli (ADMIN ha tutti i permessi)
+export function hasPermission(userRuolo: RuoloUtente, requiredRuolo: RuoloUtente): boolean {
+  const hierarchy: Record<RuoloUtente, number> = {
+    ADMIN: 100,
+    FORMAT_MANAGER: 80,
+    PRODUZIONE: 60,
+    OPERATORE: 40,
+    ARTISTICO: 20,
+  }
+  
+  return hierarchy[userRuolo] >= hierarchy[requiredRuolo]
 }

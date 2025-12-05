@@ -31,21 +31,31 @@ const QUALIFICHE = [
   { value: 'Altro', label: 'Altro (da specificare)' },
 ]
 
-// Paesi europei comuni per agibilità estera
+// Paesi esteri con codici Belfiore per INPS
 const PAESI_ESTERI = [
-  { code: 'AT', name: 'Austria' },
-  { code: 'BE', name: 'Belgio' },
-  { code: 'CH', name: 'Svizzera' },
-  { code: 'DE', name: 'Germania' },
-  { code: 'ES', name: 'Spagna' },
-  { code: 'FR', name: 'Francia' },
-  { code: 'GB', name: 'Regno Unito' },
-  { code: 'HR', name: 'Croazia' },
-  { code: 'NL', name: 'Paesi Bassi' },
-  { code: 'PL', name: 'Polonia' },
-  { code: 'PT', name: 'Portogallo' },
-  { code: 'SI', name: 'Slovenia' },
-  { code: 'OTHER', name: 'Altro...' },
+  { code: 'AT', name: 'Austria', belfiore: 'Z102' },
+  { code: 'BE', name: 'Belgio', belfiore: 'Z103' },
+  { code: 'CH', name: 'Svizzera', belfiore: 'Z133' },
+  { code: 'DE', name: 'Germania', belfiore: 'Z112' },
+  { code: 'ES', name: 'Spagna', belfiore: 'Z131' },
+  { code: 'FR', name: 'Francia', belfiore: 'Z110' },
+  { code: 'GB', name: 'Regno Unito', belfiore: 'Z114' },
+  { code: 'HR', name: 'Croazia', belfiore: 'Z149' },
+  { code: 'NL', name: 'Paesi Bassi', belfiore: 'Z126' },
+  { code: 'PL', name: 'Polonia', belfiore: 'Z127' },
+  { code: 'PT', name: 'Portogallo', belfiore: 'Z128' },
+  { code: 'SI', name: 'Slovenia', belfiore: 'Z150' },
+  { code: 'CZ', name: 'Repubblica Ceca', belfiore: 'Z156' },
+  { code: 'SK', name: 'Slovacchia', belfiore: 'Z155' },
+  { code: 'HU', name: 'Ungheria', belfiore: 'Z134' },
+  { code: 'RO', name: 'Romania', belfiore: 'Z129' },
+  { code: 'GR', name: 'Grecia', belfiore: 'Z115' },
+  { code: 'DK', name: 'Danimarca', belfiore: 'Z107' },
+  { code: 'SE', name: 'Svezia', belfiore: 'Z132' },
+  { code: 'NO', name: 'Norvegia', belfiore: 'Z125' },
+  { code: 'IE', name: 'Irlanda', belfiore: 'Z116' },
+  { code: 'LU', name: 'Lussemburgo', belfiore: 'Z120' },
+  { code: 'MC', name: 'Monaco', belfiore: 'Z123' },
 ]
 
 interface ArtistaInPeriodo {
@@ -90,17 +100,28 @@ function isValidCF(cf: string): boolean {
   return pattern.test(cf.toUpperCase())
 }
 
-// Validazione P.IVA italiana
-function isValidPIVA(piva: string): boolean {
+// Validazione P.IVA flessibile (italiana o estera)
+function isValidPIVA(piva: string, isEstera: boolean = false): boolean {
   if (!piva) return true
-  if (piva.length !== 11) return false
-  return /^[0-9]{11}$/.test(piva)
+  if (!isEstera) {
+    // P.IVA italiana: 11 cifre
+    return /^[0-9]{11}$/.test(piva)
+  }
+  // P.IVA estera: formato variabile (8-15 caratteri alfanumerici)
+  const pivaClean = piva.replace(/\s/g, '').toUpperCase()
+  return /^[A-Z]{0,2}[0-9A-Z]{8,15}$/.test(pivaClean)
 }
 
-// Validazione CAP
-function isValidCAP(cap: string): boolean {
+// Validazione CAP flessibile (italiano o estero)
+function isValidCAP(cap: string, isEstero: boolean = false): boolean {
   if (!cap) return true
-  return /^[0-9]{5}$/.test(cap)
+  if (!isEstero) {
+    // CAP italiano: 5 cifre
+    return /^[0-9]{5}$/.test(cap)
+  }
+  // CAP estero: 3-10 caratteri alfanumerici
+  const capClean = cap.replace(/\s/g, '')
+  return capClean.length >= 3 && capClean.length <= 10
 }
 
 // Validazione email
@@ -199,6 +220,9 @@ export default function NuovaAgibilitaPage() {
     note: '',
     estera: false,
     paeseEstero: '',
+    // Campi per località estera (quando non si seleziona un locale esistente)
+    luogoEstero: '',
+    indirizzoEstero: '',
   })
   
   // Totali calcolati
@@ -215,7 +239,6 @@ export default function NuovaAgibilitaPage() {
   // Ref per evitare doppie chiamate
   const prenotazioneInCorso = useRef(false)
   
-  // Carica dati iniziali
   // State per tracciare se arriva da una richiesta
   const [fromRichiestaId, setFromRichiestaId] = useState<string | null>(null)
 
@@ -253,7 +276,6 @@ export default function NuovaAgibilitaPage() {
             const dataInizio = dati.dataEvento
             const dataFine = dati.dataFine || getGiornoDopo(dati.dataEvento)
             
-            // Prepara artisti per il periodo - semplice mapping senza fetch aggiuntivi
             const artistiPeriodo: ArtistaInPeriodo[] = (dati.artisti || []).map((a: any) => ({
               id: a.id || generateId(),
               nome: a.nome || '',
@@ -275,7 +297,6 @@ export default function NuovaAgibilitaPage() {
             }])
           }
           
-          // Pulisci sessionStorage dopo aver usato i dati
           sessionStorage.removeItem('datiNuovaAgibilita')
           
         } catch (e) {
@@ -294,10 +315,8 @@ export default function NuovaAgibilitaPage() {
     if (usaFormat && form.formatId) {
       const format = formats.find(f => f.id === form.formatId)
       if (format?.committenti && format.committenti.length > 0) {
-        // Prendi il primo committente associato al format
         setForm(prev => ({ ...prev, committenteId: format.committenti![0].committente.id }))
       } else {
-        // Format senza committenti, resetta
         setForm(prev => ({ ...prev, committenteId: '' }))
       }
     }
@@ -410,6 +429,10 @@ export default function NuovaAgibilitaPage() {
     if (type === 'checkbox') {
       const checked = (e.target as HTMLInputElement).checked
       setForm(prev => ({ ...prev, [name]: checked }))
+      // Se disattivo estera, resetto paese
+      if (name === 'estera' && !checked) {
+        setForm(prev => ({ ...prev, paeseEstero: '', luogoEstero: '', indirizzoEstero: '' }))
+      }
     } else {
       setForm(prev => ({ ...prev, [name]: value }))
     }
@@ -449,7 +472,6 @@ export default function NuovaAgibilitaPage() {
     setPeriodi(prev => prev.map(p => {
       if (p.id !== periodoId) return p
       
-      // Se cambio dataInizio, aggiorno anche dataFine al giorno dopo (se dataFine era <= dataInizio)
       if (field === 'dataInizio' && value) {
         const nuovaDataFine = p.dataFine && p.dataFine > value ? p.dataFine : getGiornoDopo(value)
         return { ...p, dataInizio: value, dataFine: nuovaDataFine }
@@ -537,7 +559,7 @@ export default function NuovaAgibilitaPage() {
     if (!nuovoLocale.citta.trim()) errori.citta = 'Città obbligatoria'
     if (!nuovoLocale.codiceBelfiore.trim()) errori.codiceBelfiore = 'Codice Belfiore obbligatorio'
     if (nuovoLocale.codiceBelfiore && nuovoLocale.codiceBelfiore.length !== 4) errori.codiceBelfiore = 'Deve essere 4 caratteri'
-    if (nuovoLocale.cap && !isValidCAP(nuovoLocale.cap)) errori.cap = 'CAP non valido (5 cifre)'
+    if (nuovoLocale.cap && !isValidCAP(nuovoLocale.cap, false)) errori.cap = 'CAP non valido (5 cifre)'
     if (nuovoLocale.provincia && nuovoLocale.provincia.length !== 2) errori.provincia = 'Provincia 2 caratteri'
     if (nuovoLocale.referenteEmail && !isValidEmail(nuovoLocale.referenteEmail)) errori.referenteEmail = 'Email non valida'
     setErroriLocale(errori)
@@ -572,8 +594,11 @@ export default function NuovaAgibilitaPage() {
   const validateCommittente = () => {
     const errori: Record<string, string> = {}
     if (!nuovoCommittente.ragioneSociale.trim()) errori.ragioneSociale = 'Ragione sociale obbligatoria'
-    if (nuovoCommittente.partitaIva && !isValidPIVA(nuovoCommittente.partitaIva)) errori.partitaIva = 'P.IVA non valida (11 cifre)'
-    if (nuovoCommittente.cap && !isValidCAP(nuovoCommittente.cap)) errori.cap = 'CAP non valido (5 cifre)'
+    // P.IVA: validazione flessibile (potrebbe essere estera)
+    if (nuovoCommittente.partitaIva && !isValidPIVA(nuovoCommittente.partitaIva, nuovoCommittente.partitaIva.length !== 11)) {
+      errori.partitaIva = 'P.IVA non valida'
+    }
+    if (nuovoCommittente.cap && !isValidCAP(nuovoCommittente.cap, false)) errori.cap = 'CAP non valido (5 cifre)'
     if (nuovoCommittente.provincia && nuovoCommittente.provincia.length !== 2) errori.provincia = 'Provincia 2 caratteri'
     if (nuovoCommittente.email && !isValidEmail(nuovoCommittente.email)) errori.email = 'Email non valida'
     setErroriCommittente(errori)
@@ -658,11 +683,20 @@ export default function NuovaAgibilitaPage() {
       return
     }
     
+    // Verifica qualifiche "ALTRO" - blocca solo se ci sono
+    const artistiConQualificaAltro = tuttiArtisti.filter(a => !isQualificaValida(a.qualifica))
+    if (artistiConQualificaAltro.length > 0) {
+      setError(`Modifica la qualifica per: ${artistiConQualificaAltro.map(a => `${a.cognome} ${a.nome}`).join(', ')}`)
+      setLoading(false)
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+      return
+    }
+    
     // Verifica duplicati: stesso artista nello stesso giorno (dataInizio)
     const artistiPerData = new Map<string, { count: number, nome: string, data: string }>()
     periodi.forEach(p => {
       p.artisti.forEach(a => {
-        const chiave = `${a.id}|${p.dataInizio}` // Usa | come separatore invece di -
+        const chiave = `${a.id}|${p.dataInizio}`
         if (!artistiPerData.has(chiave)) {
           artistiPerData.set(chiave, { count: 0, nome: `${a.cognome} ${a.nome}`, data: p.dataInizio })
         }
@@ -690,44 +724,40 @@ export default function NuovaAgibilitaPage() {
     const dataMinima = tutteLeDateInizio.sort()[0]
     const dataMassima = tutteLeDateFine.sort().reverse()[0]
     
-    // DEBUG - rimuovere dopo
-    console.log('Artisti da inviare:', tuttiArtisti.map(a => {
-      const periodo = periodi.find(p => p.artisti.some(art => art.id === a.id))
-      return { artistaId: a.id, nome: `${a.cognome} ${a.nome}`, dataInizio: periodo?.dataInizio }
-    }))
+    // Ottieni codice Belfiore per estero
+    let codiceBelfioreEstero: string | null = null
+    if (form.estera && form.paeseEstero) {
+      const paese = PAESI_ESTERI.find(p => p.code === form.paeseEstero)
+      codiceBelfioreEstero = paese?.belfiore || null
+    }
 
     try {
       const res = await fetch('/api/agibilita', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          localeId: form.localeId,
-          committenteId: form.committenteId || null, // Può essere null
-          formatId: usaFormat && form.formatId ? form.formatId : null, // Format solo se checkbox attivo
+          localeId: form.localeId || null, // Può essere null per estera
+          committenteId: form.committenteId || null,
+          formatId: usaFormat && form.formatId ? form.formatId : null,
           estera: form.estera,
-          paeseEstero: form.paeseEstero,
+          paeseEstero: form.paeseEstero || null,
+          codiceBelfioreEstero: codiceBelfioreEstero,
+          luogoEstero: form.luogoEstero || null,
+          indirizzoEstero: form.indirizzoEstero || null,
           note: form.note,
           prenotazioneId: prenotazione?.id,
           codice: prenotazione?.codice,
           data: dataMinima,
           dataFine: dataMassima !== dataMinima ? dataMassima : null,
-          periodi: periodi.map(p => ({
-            dataInizio: p.dataInizio,
-            dataFine: p.dataFine || p.dataInizio,
-            artisti: p.artisti.map(a => ({
+          // FIX: costruisci artisti iterando sui periodi per avere le date corrette
+          artisti: periodi.flatMap(p => 
+            p.artisti.map(a => ({
               artistaId: a.id,
               compensoNetto: parseFloat(a.compensoNetto || '0'),
+              dataInizio: p.dataInizio,
+              dataFine: p.dataFine || p.dataInizio,
             }))
-          })),
-          artisti: tuttiArtisti.map(a => {
-            const periodo = periodi.find(p => p.artisti.some(art => art.id === a.id))
-            return {
-              artistaId: a.id,
-              compensoNetto: parseFloat(a.compensoNetto || '0'),
-              dataInizio: periodo?.dataInizio || null,
-              dataFine: periodo?.dataFine || periodo?.dataInizio || null,
-            }
-          }),
+          ),
         }),
       })
       
@@ -843,28 +873,97 @@ export default function NuovaAgibilitaPage() {
           )}
         </div>
         
-        {/* Locale e Committente */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="bg-white rounded-lg shadow-sm p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-              <MapPin size={20} />
-              Locale (Dove) <span className="text-red-500">*</span>
-            </h2>
-            <AutocompleteLocale
-              value={form.localeId || null}
-              onChange={handleLocaleChange}
-              placeholder="Cerca locale per nome, città..."
-              onAddNew={() => setShowModalLocale(true)}
-            />
+        {/* Flag Estera - PRIMA di Locale */}
+        <div className="bg-white rounded-lg shadow-sm p-6">
+          <div className="flex items-center gap-4">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                name="estera"
+                checked={form.estera}
+                onChange={handleChange}
+                className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+              />
+              <Globe size={18} className={form.estera ? 'text-blue-600' : 'text-gray-400'} />
+              <span className="font-medium">Agibilità Estera</span>
+            </label>
           </div>
           
-          <div className="bg-white rounded-lg shadow-sm p-6">
+          {form.estera && (
+            <div className="mt-4 p-4 bg-blue-50 rounded-lg space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-blue-700 mb-2">Paese *</label>
+                <select
+                  name="paeseEstero"
+                  value={form.paeseEstero}
+                  onChange={handleChange}
+                  required={form.estera}
+                  className="w-full md:w-64 px-4 py-2 border border-blue-200 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white"
+                >
+                  <option value="">Seleziona paese...</option>
+                  {PAESI_ESTERI.map(p => (
+                    <option key={p.code} value={p.code}>{p.name}</option>
+                  ))}
+                </select>
+                {form.paeseEstero && (
+                  <p className="text-xs text-blue-600 mt-1">
+                    Codice Belfiore: {PAESI_ESTERI.find(p => p.code === form.paeseEstero)?.belfiore}
+                  </p>
+                )}
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-blue-700 mb-1">Luogo/Città evento</label>
+                  <input
+                    type="text"
+                    name="luogoEstero"
+                    value={form.luogoEstero}
+                    onChange={handleChange}
+                    placeholder="es. Monaco di Baviera"
+                    className="w-full px-4 py-2 border border-blue-200 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-blue-700 mb-1">Indirizzo</label>
+                  <input
+                    type="text"
+                    name="indirizzoEstero"
+                    value={form.indirizzoEstero}
+                    onChange={handleChange}
+                    placeholder="es. Olympiastadion, Spiridon-Louis-Ring"
+                    className="w-full px-4 py-2 border border-blue-200 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+        
+        {/* Locale e Committente */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Locale - nascosto o opzionale se estera */}
+          {!form.estera && (
+            <div className="bg-white rounded-lg shadow-sm p-6">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                <MapPin size={20} />
+                Locale (Dove) <span className="text-red-500">*</span>
+              </h2>
+              <AutocompleteLocale
+                value={form.localeId || null}
+                onChange={handleLocaleChange}
+                placeholder="Cerca locale per nome, città..."
+                onAddNew={() => setShowModalLocale(true)}
+              />
+            </div>
+          )}
+          
+          <div className={`bg-white rounded-lg shadow-sm p-6 ${form.estera ? 'md:col-span-2' : ''}`}>
             <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
               <Building2 size={20} />
               Committente (Chi paga)
             </h2>
             
-            {/* Se usa format con committenti associati, mostra solo quelli */}
             {usaFormat && formatSelezionato?.committenti && formatSelezionato.committenti.length > 0 ? (
               <div>
                 <select
@@ -907,38 +1006,6 @@ export default function NuovaAgibilitaPage() {
               <div className="mt-2 p-2 bg-green-50 rounded text-sm text-green-700">
                 💰 Quota committente: €{parseFloat(committenteSelezionato.quotaAgenzia || '0').toFixed(2)} per prestazione
               </div>
-            )}
-          </div>
-        </div>
-        
-        {/* Flag Estera */}
-        <div className="bg-white rounded-lg shadow-sm p-6">
-          <div className="flex items-center gap-4">
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                name="estera"
-                checked={form.estera}
-                onChange={handleChange}
-                className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-              />
-              <Globe size={18} className={form.estera ? 'text-blue-600' : 'text-gray-400'} />
-              <span className="font-medium">Agibilità Estera</span>
-            </label>
-            
-            {form.estera && (
-              <select
-                name="paeseEstero"
-                value={form.paeseEstero}
-                onChange={handleChange}
-                required={form.estera}
-                className="px-4 py-2 border border-blue-200 rounded-lg focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">Seleziona paese...</option>
-                {PAESI_ESTERI.map(p => (
-                  <option key={p.code} value={p.code}>{p.name}</option>
-                ))}
-              </select>
             )}
           </div>
         </div>
@@ -1044,7 +1111,6 @@ export default function NuovaAgibilitaPage() {
                               <span className="ml-2 text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded">P.IVA</span>
                             )}
                           </p>
-                          {/* Mostra qualifica: se valida solo testo, se non valida dropdown */}
                           <div className="flex items-center gap-2 mt-1">
                             {qualificaNonValida ? (
                               <>
@@ -1293,7 +1359,7 @@ export default function NuovaAgibilitaPage() {
                 value={nuovoCommittente.partitaIva}
                 onChange={(e) => setNuovoCommittente(prev => ({ ...prev, partitaIva: e.target.value }))}
                 className={`w-full px-3 py-2 border rounded-lg ${erroriCommittente.partitaIva ? 'border-red-500' : 'border-gray-300'}`}
-                maxLength={11}
+                placeholder="11 cifre (IT) o formato estero"
               />
               {erroriCommittente.partitaIva && <p className="text-xs text-red-500 mt-1">{erroriCommittente.partitaIva}</p>}
             </div>

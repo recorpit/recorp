@@ -92,15 +92,25 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST - Crea agibilità (multi-artista)
+// POST - Crea agibilità (multi-artista, supporto estera)
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
     
-    // Verifica dati obbligatori - committente e format NON obbligatori
-    if (!body.localeId || !body.data) {
+    // Verifica dati obbligatori
+    // Se estera, locale non è obbligatorio
+    const isEstera = body.estera === true
+    
+    if (!isEstera && !body.localeId) {
       return NextResponse.json(
-        { error: 'Dati obbligatori mancanti: locale, data' },
+        { error: 'Locale obbligatorio per agibilità italiana' },
+        { status: 400 }
+      )
+    }
+    
+    if (!body.data) {
+      return NextResponse.json(
+        { error: 'Data obbligatoria' },
         { status: 400 }
       )
     }
@@ -112,10 +122,21 @@ export async function POST(request: NextRequest) {
       )
     }
     
-    // Verifica locale
-    const locale = await prisma.locale.findUnique({ where: { id: body.localeId } })
-    if (!locale) {
-      return NextResponse.json({ error: 'Locale non trovato' }, { status: 404 })
+    // Verifica paese per estera
+    if (isEstera && !body.paeseEstero) {
+      return NextResponse.json(
+        { error: 'Paese obbligatorio per agibilità estera' },
+        { status: 400 }
+      )
+    }
+    
+    // Verifica locale (solo se non estera)
+    let locale = null
+    if (!isEstera && body.localeId) {
+      locale = await prisma.locale.findUnique({ where: { id: body.localeId } })
+      if (!locale) {
+        return NextResponse.json({ error: 'Locale non trovato' }, { status: 404 })
+      }
     }
     
     // Verifica committente (opzionale)
@@ -194,7 +215,7 @@ export async function POST(request: NextRequest) {
     let totaleLordi = 0
     let totaleRitenute = 0
     
-    /// DEBUG
+    // DEBUG
     console.log('=== DEBUG ARTISTI RICEVUTI ===')
     console.log(JSON.stringify(body.artisti, null, 2))
     
@@ -251,10 +272,20 @@ export async function POST(request: NextRequest) {
     const importoFattura = round2(totaleLordi + quotaAgenzia)
     
     // Determina stato
+    // Per estera: verifica codiceBelfioreEstero invece di locale.codiceBelfiore
     const tuttiIscritti = artisti.every(a => a.iscritto && a.codiceFiscale && a.dataNascita)
     let stato: StatoAgibilita = 'BOZZA'
-    if (tuttiIscritti && locale.codiceBelfiore) {
-      stato = 'PRONTA'
+    
+    if (isEstera) {
+      // Per estera: basta che artisti siano iscritti e ci sia codice belfiore estero
+      if (tuttiIscritti && body.codiceBelfioreEstero) {
+        stato = 'PRONTA'
+      }
+    } else {
+      // Per italiana: verifica locale.codiceBelfiore
+      if (tuttiIscritti && locale?.codiceBelfiore) {
+        stato = 'PRONTA'
+      }
     }
     
     // Crea agibilità con artisti in transazione
@@ -263,16 +294,22 @@ export async function POST(request: NextRequest) {
       const ag = await tx.agibilita.create({
         data: {
           codice,
-          localeId: body.localeId,
-          committenteId: body.committenteId || null, // Può essere null
-          formatId: body.formatId || null, // Può essere null
+          // Locale: null se estera, altrimenti localeId
+          localeId: isEstera ? null : body.localeId,
+          committenteId: body.committenteId || null,
+          formatId: body.formatId || null,
           richiedente: body.richiedente || 'COMMITTENTE',
           data: new Date(body.data),
           dataFine: body.dataFine ? new Date(body.dataFine) : null,
           luogoPrestazione: body.luogoPrestazione || null,
-          // Flag estera
-          estera: body.estera || false,
+          
+          // Campi estera
+          estera: isEstera,
           paeseEstero: body.paeseEstero || null,
+          codiceBelfioreEstero: body.codiceBelfioreEstero || null,
+          luogoEstero: body.luogoEstero || null,
+          indirizzoEstero: body.indirizzoEstero || null,
+          
           totaleCompensiNetti: totaleNetti,
           totaleCompensiLordi: totaleLordi,
           totaleRitenute: totaleRitenute,

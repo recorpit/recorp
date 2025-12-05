@@ -1,6 +1,7 @@
 // src/app/api/agibilita/[id]/route.ts
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
+import { calcolaCompensi } from '@/lib/constants'
 
 // Funzione per arrotondare a 2 decimali
 const round2 = (n: number) => Math.round(n * 100) / 100
@@ -24,6 +25,7 @@ export async function GET(
         locale: true,
         committente: true,
         fattura: true,
+        format: true,
       },
     })
     
@@ -44,7 +46,7 @@ export async function GET(
   }
 }
 
-// PUT - Aggiorna agibilità completa (con periodi e artisti)
+// PUT - Aggiorna agibilità completa (con periodi, artisti e supporto estera)
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -69,7 +71,159 @@ export async function PUT(
       )
     }
     
-    // Se riceviamo periodi (nuova struttura)
+    // Determina se è estera
+    const isEstera = body.estera === true
+    
+    // Se riceviamo artisti con struttura nuova (array con dataInizio/dataFine per ogni artista)
+    if (body.artisti && Array.isArray(body.artisti) && body.artisti.length > 0) {
+      
+      // Deduplica artisti: stesso artista + stessa dataInizio = duplicato
+      const artistiUnici = new Map<string, any>()
+      body.artisti.forEach((a: any) => {
+        const chiave = `${a.artistaId}|${a.dataInizio}`
+        if (!artistiUnici.has(chiave)) {
+          artistiUnici.set(chiave, a)
+        } else {
+          console.log(`[PUT] DUPLICATO RIMOSSO: ${chiave}`)
+        }
+      })
+      const artistiDedupe = Array.from(artistiUnici.values())
+      console.log(`[PUT] Artisti dopo dedupe: ${artistiDedupe.length} (erano ${body.artisti.length})`)
+      
+      // Calcola data minima/massima dagli artisti
+      const tutteLeDateInizio = artistiDedupe.map((a: any) => a.dataInizio).filter(Boolean)
+      const tutteLeDateFine = artistiDedupe.map((a: any) => a.dataFine || a.dataInizio).filter(Boolean)
+      const dataMinima = tutteLeDateInizio.sort()[0]
+      const dataMassima = tutteLeDateFine.sort().reverse()[0]
+      
+      // Verifica artisti esistono
+      const artistiIds = Array.from(new Set(artistiDedupe.map((a: any) => a.artistaId))) as string[]
+      const artistiDB = await prisma.artista.findMany({
+        where: { id: { in: artistiIds } }
+      })
+      
+      if (artistiDB.length !== artistiIds.length) {
+        return NextResponse.json({ error: 'Uno o più artisti non trovati' }, { status: 404 })
+      }
+      
+      // Mappa artisti per calcolo compensi
+      const artistiMap = new Map(artistiDB.map(a => [a.id, a]))
+      
+      // Calcola compensi per ogni artista
+      let totaleNetti = 0
+      let totaleLordi = 0
+      let totaleRitenute = 0
+      
+      const artistiData = artistiDedupe.map((a: any) => {
+        const artista = artistiMap.get(a.artistaId)!
+        const netto = round2(Number(a.compensoNetto || 0))
+        
+        // Calcola lordo e ritenuta
+        let lordo = netto
+        let ritenuta = 0
+        
+        // Solo se non è P.IVA applica ritenuta
+        if (artista.tipoContratto !== 'P_IVA' && !artista.partitaIva) {
+          const compensi = calcolaCompensi({ netto }, 0)
+          lordo = compensi.lordo
+          ritenuta = compensi.ritenuta
+        }
+        
+        totaleNetti += netto
+        totaleLordi += lordo
+        totaleRitenute += ritenuta
+        
+        return {
+          artistaId: a.artistaId,
+          dataInizio: new Date(a.dataInizio),
+          dataFine: a.dataFine ? new Date(a.dataFine) : new Date(a.dataInizio),
+          qualifica: a.qualifica || artista.qualifica || null,
+          compensoNetto: netto,
+          compensoLordo: lordo,
+          ritenuta: ritenuta,
+        }
+      })
+      
+      // Arrotonda totali
+      totaleNetti = round2(totaleNetti)
+      totaleLordi = round2(totaleLordi)
+      totaleRitenute = round2(totaleRitenute)
+      
+      // Calcola quota agenzia
+      const committente = body.committenteId 
+        ? await prisma.committente.findUnique({ where: { id: body.committenteId } })
+        : esistente.committente
+      
+      const quotaUnitaria = round2(parseFloat(committente?.quotaAgenzia?.toString() || '0'))
+      const quotaAgenzia = round2(quotaUnitaria * artistiDedupe.length)
+      const importoFattura = round2(totaleLordi + quotaAgenzia)
+      
+      // Transazione per aggiornare tutto insieme
+      const agibilita = await prisma.$transaction(async (tx) => {
+        // 1. Elimina tutti gli artisti esistenti
+        await tx.artistaAgibilita.deleteMany({
+          where: { agibilitaId: id }
+        })
+        
+        // 2. Crea nuovi artisti con date individuali
+        if (artistiData.length > 0) {
+          await tx.artistaAgibilita.createMany({
+            data: artistiData.map((a: any) => ({
+              agibilitaId: id,
+              ...a,
+            }))
+          })
+        }
+        
+        // 3. Aggiorna agibilità
+        return await tx.agibilita.update({
+          where: { id },
+          data: {
+            // Locale: null se estera
+            localeId: isEstera ? null : (body.localeId !== undefined ? body.localeId : esistente.localeId),
+            committenteId: body.committenteId !== undefined ? body.committenteId : esistente.committenteId,
+            
+            // Date
+            data: dataMinima ? new Date(dataMinima) : esistente.data,
+            dataFine: dataMassima && dataMassima !== dataMinima ? new Date(dataMassima) : null,
+            
+            // Campi estera
+            estera: isEstera,
+            paeseEstero: body.paeseEstero || null,
+            codiceBelfioreEstero: body.codiceBelfioreEstero || null,
+            luogoEstero: body.luogoEstero || null,
+            indirizzoEstero: body.indirizzoEstero || null,
+            
+            // Totali
+            quotaAgenzia: body.quotaAgenzia !== undefined ? round2(Number(body.quotaAgenzia)) : quotaAgenzia,
+            totaleCompensiNetti: body.totaleCompensiNetti !== undefined ? round2(Number(body.totaleCompensiNetti)) : totaleNetti,
+            totaleCompensiLordi: body.totaleCompensiLordi !== undefined ? round2(Number(body.totaleCompensiLordi)) : totaleLordi,
+            totaleRitenute: body.totaleRitenute !== undefined ? round2(Number(body.totaleRitenute)) : totaleRitenute,
+            importoFattura: body.importoFattura !== undefined ? round2(Number(body.importoFattura)) : importoFattura,
+            
+            // Note
+            note: body.note !== undefined ? body.note : esistente.note,
+            noteInterne: body.noteInterne !== undefined ? body.noteInterne : esistente.noteInterne,
+            
+            updatedAt: new Date(),
+          },
+          include: {
+            artisti: {
+              include: {
+                artista: true,
+              }
+            },
+            locale: true,
+            committente: true,
+            format: true,
+          },
+        })
+      })
+      
+      return NextResponse.json(agibilita)
+    }
+    
+    // Se riceviamo periodi (struttura alternativa)
     if (body.periodi && Array.isArray(body.periodi)) {
       // Calcola data minima/massima dai periodi
       const tutteLeDateInizio = body.periodi.map((p: any) => p.dataInizio).filter(Boolean)
@@ -130,10 +284,18 @@ export async function PUT(
         return await tx.agibilita.update({
           where: { id },
           data: {
-            localeId: body.localeId !== undefined ? body.localeId : esistente.localeId,
+            localeId: isEstera ? null : (body.localeId !== undefined ? body.localeId : esistente.localeId),
             committenteId: body.committenteId !== undefined ? body.committenteId : esistente.committenteId,
             data: new Date(dataMinima),
             dataFine: dataMassima !== dataMinima ? new Date(dataMassima) : null,
+            
+            // Campi estera
+            estera: isEstera,
+            paeseEstero: body.paeseEstero || null,
+            codiceBelfioreEstero: body.codiceBelfioreEstero || null,
+            luogoEstero: body.luogoEstero || null,
+            indirizzoEstero: body.indirizzoEstero || null,
+            
             quotaAgenzia: round2(Number(body.quotaAgenzia || 0)),
             totaleCompensiNetti: round2(Number(body.totaleCompensiNetti || 0)),
             totaleCompensiLordi: round2(Number(body.totaleCompensiLordi || 0)),
@@ -151,6 +313,7 @@ export async function PUT(
             },
             locale: true,
             committente: true,
+            format: true,
           },
         })
       })
@@ -158,78 +321,42 @@ export async function PUT(
       return NextResponse.json(agibilita)
     }
     
-    // Fallback: vecchia struttura (artisti senza periodi)
-    const artistiDaCreare = body.artisti?.filter((a: any) => !a.id) || []
-    const artistiEsistentiIds = body.artisti?.filter((a: any) => a.id).map((a: any) => a.artistaId) || []
-    const artistiDaRimuovere = esistente.artisti.filter(a => !artistiEsistentiIds.includes(a.artistaId))
-    
-    // Transazione per aggiornare tutto insieme
-    const agibilita = await prisma.$transaction(async (tx) => {
-      // 1. Rimuovi artisti non più presenti
-      if (artistiDaRimuovere.length > 0) {
-        await tx.artistaAgibilita.deleteMany({
-          where: {
-            id: { in: artistiDaRimuovere.map(a => a.id) }
+    // Fallback: aggiornamento semplice senza artisti
+    const agibilita = await prisma.agibilita.update({
+      where: { id },
+      data: {
+        localeId: isEstera ? null : (body.localeId !== undefined ? body.localeId : esistente.localeId),
+        committenteId: body.committenteId !== undefined ? body.committenteId : esistente.committenteId,
+        data: body.data ? new Date(body.data) : esistente.data,
+        dataFine: body.dataFine ? new Date(body.dataFine) : null,
+        luogoPrestazione: body.luogoPrestazione || null,
+        
+        // Campi estera
+        estera: isEstera,
+        paeseEstero: body.paeseEstero || null,
+        codiceBelfioreEstero: body.codiceBelfioreEstero || null,
+        luogoEstero: body.luogoEstero || null,
+        indirizzoEstero: body.indirizzoEstero || null,
+        
+        quotaAgenzia: body.quotaAgenzia !== undefined ? round2(Number(body.quotaAgenzia)) : undefined,
+        totaleCompensiNetti: body.totaleCompensiNetti !== undefined ? round2(Number(body.totaleCompensiNetti)) : undefined,
+        totaleCompensiLordi: body.totaleCompensiLordi !== undefined ? round2(Number(body.totaleCompensiLordi)) : undefined,
+        totaleRitenute: body.totaleRitenute !== undefined ? round2(Number(body.totaleRitenute)) : undefined,
+        importoFattura: body.importoFattura !== undefined ? round2(Number(body.importoFattura)) : undefined,
+        note: body.note !== undefined ? body.note : esistente.note,
+        noteInterne: body.noteInterne !== undefined ? body.noteInterne : esistente.noteInterne,
+        updatedAt: new Date(),
+      },
+      include: {
+        artisti: {
+          include: {
+            artista: true,
           }
-        })
-      }
-      
-      // 2. Aggiorna artisti esistenti con arrotondamento
-      for (const artista of body.artisti?.filter((a: any) => a.id) || []) {
-        await tx.artistaAgibilita.updateMany({
-          where: {
-            agibilitaId: id,
-            artistaId: artista.artistaId,
-          },
-          data: {
-            qualifica: artista.qualifica,
-            compensoNetto: round2(Number(artista.compensoNetto || 0)),
-            compensoLordo: round2(Number(artista.compensoLordo || 0)),
-            ritenuta: round2(Number(artista.ritenuta || 0)),
-          }
-        })
-      }
-      
-      // 3. Crea nuovi artisti con arrotondamento
-      if (artistiDaCreare.length > 0) {
-        await tx.artistaAgibilita.createMany({
-          data: artistiDaCreare.map((a: any) => ({
-            agibilitaId: id,
-            artistaId: a.artistaId,
-            qualifica: a.qualifica,
-            compensoNetto: round2(Number(a.compensoNetto || 0)),
-            compensoLordo: round2(Number(a.compensoLordo || 0)),
-            ritenuta: round2(Number(a.ritenuta || 0)),
-          }))
-        })
-      }
-      
-      // 4. Aggiorna agibilità con arrotondamento
-      return await tx.agibilita.update({
-        where: { id },
-        data: {
-          data: body.data ? new Date(body.data) : esistente.data,
-          dataFine: body.dataFine ? new Date(body.dataFine) : null,
-          luogoPrestazione: body.luogoPrestazione || null,
-          quotaAgenzia: round2(Number(body.quotaAgenzia || 0)),
-          totaleCompensiNetti: round2(Number(body.totaleCompensiNetti || 0)),
-          totaleCompensiLordi: round2(Number(body.totaleCompensiLordi || 0)),
-          totaleRitenute: round2(Number(body.totaleRitenute || 0)),
-          importoFattura: round2(Number(body.importoFattura || 0)),
-          note: body.note !== undefined ? body.note : esistente.note,
-          noteInterne: body.noteInterne !== undefined ? body.noteInterne : esistente.noteInterne,
-          updatedAt: new Date(),
         },
-        include: {
-          artisti: {
-            include: {
-              artista: true,
-            }
-          },
-          locale: true,
-          committente: true,
-        },
-      })
+        locale: true,
+        committente: true,
+        format: true,
+      },
     })
     
     return NextResponse.json(agibilita)

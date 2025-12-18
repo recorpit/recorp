@@ -231,10 +231,18 @@ async function processZipFile(file: File, emailSettings: any): Promise<ImportRes
     }
     
     if (!agibilita) {
-      return { 
-        fileName, 
-        success: false, 
-        error: `Agibilità non trovata per data ${dataDal} e CF: ${codiciFiscali.join(', ')}` 
+      return {
+        fileName,
+        success: false,
+        error: `Agibilità non trovata per data ${dataDal} e CF: ${codiciFiscali.join(', ')}`
+      }
+    }
+
+    if (!agibilita.locale) {
+      return {
+        fileName,
+        success: false,
+        error: `Agibilità ${agibilita.codice || agibilita.id} senza locale associato`
       }
     }
     

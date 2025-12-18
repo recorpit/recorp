@@ -801,27 +801,27 @@ export default function ModificaArtistaPage() {
         </div>
         
         {/* Actions */}
-        <div className="flex items-center justify-between">
-          <div className="text-sm text-gray-500">
+        <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-4">
+          <div className="text-sm text-gray-500 text-center sm:text-left">
             {completezza?.completo ? (
-              <span className="text-green-600 flex items-center gap-1">
+              <span className="text-green-600 flex items-center justify-center sm:justify-start gap-1">
                 <CheckCircle size={16} />
                 Dati completi
               </span>
             ) : (
-              <span className="text-yellow-600 flex items-center gap-1">
+              <span className="text-yellow-600 flex items-center justify-center sm:justify-start gap-1">
                 <AlertTriangle size={16} />
                 Dati incompleti
               </span>
             )}
           </div>
-          
-          <div className="flex items-center gap-4">
-            <Link href="/artisti" className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
+
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4">
+            <Link href="/artisti" className="px-6 py-3 sm:py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-center">
               Annulla
             </Link>
             <button type="submit" disabled={saving}
-              className="flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">
+              className="flex items-center justify-center gap-2 px-6 py-3 sm:py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">
               <Save size={20} />
               {saving ? 'Salvataggio...' : 'Salva Modifiche'}
             </button>

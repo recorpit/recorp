@@ -10,6 +10,7 @@ interface Committente {
   partitaIva?: string
   codiceFiscale?: string
   aRischio?: boolean
+  quotaAgenzia?: string | number
 }
 
 interface AutocompleteCommittenteProps {

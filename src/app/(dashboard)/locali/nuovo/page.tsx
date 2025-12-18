@@ -305,17 +305,17 @@ export default function NuovoLocalePage() {
         </div>
         
         {/* Actions */}
-        <div className="flex items-center justify-end gap-4">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-3 sm:gap-4">
           <Link
             href="/locali"
-            className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+            className="px-6 py-3 sm:py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-center"
           >
             Annulla
           </Link>
           <button
             type="submit"
             disabled={loading}
-            className="flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+            className="flex items-center justify-center gap-2 px-6 py-3 sm:py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
           >
             <Save size={20} />
             {loading ? 'Salvataggio...' : 'Salva Locale'}

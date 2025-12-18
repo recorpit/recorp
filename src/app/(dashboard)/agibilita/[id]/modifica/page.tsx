@@ -549,13 +549,13 @@ export default function ModificaAgibilitaPage() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Committente</label>
-                  <AutocompleteCommittente 
-                    value={committenteId} 
-                    onChange={(id, c) => { 
+                  <AutocompleteCommittente
+                    value={committenteId}
+                    onChange={(id, c) => {
                       setCommittenteId(id)
-                      setQuotaCommittente(parseFloat(c?.quotaAgenzia || '0')) 
-                    }} 
-                    placeholder="Cerca committente..." 
+                      setQuotaCommittente(parseFloat(String(c?.quotaAgenzia || '0')))
+                    }}
+                    placeholder="Cerca committente..."
                   />
                 </div>
               </div>
@@ -566,13 +566,13 @@ export default function ModificaAgibilitaPage() {
           {form.estera && (
             <div className="bg-white rounded-lg shadow-sm p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">Committente</h2>
-              <AutocompleteCommittente 
-                value={committenteId} 
-                onChange={(id, c) => { 
+              <AutocompleteCommittente
+                value={committenteId}
+                onChange={(id, c) => {
                   setCommittenteId(id)
-                  setQuotaCommittente(parseFloat(c?.quotaAgenzia || '0')) 
-                }} 
-                placeholder="Cerca committente..." 
+                  setQuotaCommittente(parseFloat(String(c?.quotaAgenzia || '0')))
+                }}
+                placeholder="Cerca committente..."
               />
             </div>
           )}

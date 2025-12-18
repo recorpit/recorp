@@ -59,6 +59,13 @@ export async function POST(
         { status: 404 }
       )
     }
+
+    if (!agibilita.locale) {
+      return NextResponse.json(
+        { error: 'Agibilità senza locale associato' },
+        { status: 400 }
+      )
+    }
     
     // Converti File in Buffer
     const arrayBuffer = await file.arrayBuffer()

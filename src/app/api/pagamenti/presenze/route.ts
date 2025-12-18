@@ -76,7 +76,7 @@ export async function GET(request: NextRequest) {
         }
         agibilitaPerArtista.get(aa.artistaId)!.push({
           data: ag.data,
-          locale: ag.locale.nome,
+          locale: ag.locale?.nome || 'N/D',
           ore: 8, // Default, può essere personalizzato
         })
       }

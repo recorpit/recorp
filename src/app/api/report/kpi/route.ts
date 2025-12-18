@@ -192,7 +192,7 @@ export async function GET(request: NextRequest) {
       take: 10
     })
     
-    const localiIds = topLocaliEventi.map(l => l.localeId)
+    const localiIds = topLocaliEventi.map(l => l.localeId).filter((id): id is string => id !== null)
     const locali = await prisma.locale.findMany({
       where: { id: { in: localiIds } },
       select: { id: true, nome: true, citta: true }

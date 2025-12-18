@@ -149,7 +149,7 @@ export async function POST(request: NextRequest) {
     }
     
     // Verifica format (opzionale)
-    let format = null
+    let format: any = null
     if (body.formatId) {
       format = await prisma.format.findUnique({ where: { id: body.formatId } })
       if (!format) {

@@ -310,8 +310,8 @@ export async function POST(request: NextRequest) {
     
     // Genera causale
     const causale = agibilita.length === 1
-      ? `${agibilita[0].data.toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' }).toUpperCase()} - ${agibilita[0].locale.nome}`
-      : agibilita.map(a => `${a.data.toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'short' })} ${a.locale.nome}`).join(' / ');
+      ? `${agibilita[0].data.toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' }).toUpperCase()} - ${agibilita[0].locale?.nome || 'N/D'}`
+      : agibilita.map(a => `${a.data.toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'short' })} ${a.locale?.nome || 'N/D'}`).join(' / ');
     
     // Calcola data scadenza
     const scadenzaPagamento = body.scadenzaPagamentoId 

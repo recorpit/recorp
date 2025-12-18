@@ -65,7 +65,7 @@ export async function GET(request: NextRequest) {
         gruppo.agibilita.push({
           id: ag.id,
           data: ag.data,
-          locale: ag.locale.nome,
+          locale: ag.locale?.nome || 'N/D',
           compenso: aa.compensoLordo, // Per P.IVA usiamo il lordo
         })
         gruppo.totaleCompetenze += parseFloat(aa.compensoLordo.toString())
@@ -195,7 +195,7 @@ export async function POST(request: NextRequest) {
         agibilitaIncluse.push({
           agibilitaId: ag.id,
           data: ag.data,
-          locale: ag.locale.nome,
+          locale: ag.locale?.nome || 'N/D',
           compenso: aa.compensoLordo,
         })
       }

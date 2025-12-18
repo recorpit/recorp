@@ -244,7 +244,9 @@ export async function GET(
       }
     })
     
-    if (!agibilita.locale.codiceBelfiore) {
+    if (!agibilita.locale) {
+      errori.push('Locale non associato all\'agibilità')
+    } else if (!agibilita.locale.codiceBelfiore) {
       errori.push('Codice Belfiore locale mancante')
     }
     
@@ -323,7 +325,9 @@ export async function POST(
       }
     })
     
-    if (!agibilita.locale.codiceBelfiore) {
+    if (!agibilita.locale) {
+      errori.push('Locale non associato all\'agibilità')
+    } else if (!agibilita.locale.codiceBelfiore) {
       errori.push('Codice Belfiore locale mancante')
     }
     

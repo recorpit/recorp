@@ -107,7 +107,7 @@ export async function PUT(
       }
       
       // Mappa artisti per calcolo compensi
-      const artistiMap = new Map(artistiDB.map(a => [a.id, a]))
+      const artistiMap = new Map(artistiDB.map((a: any) => [a.id, a]))
       
       // Calcola compensi per ogni artista
       let totaleNetti = 0
@@ -115,7 +115,7 @@ export async function PUT(
       let totaleRitenute = 0
       
       const artistiData = artistiDedupe.map((a: any) => {
-        const artista = artistiMap.get(a.artistaId)!
+        const artista: any = artistiMap.get(a.artistaId)!
         const netto = round2(Number(a.compensoNetto || 0))
         
         // Calcola lordo e ritenuta

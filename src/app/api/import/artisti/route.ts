@@ -1,7 +1,7 @@
 // src/app/api/import/artisti/route.ts
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
-import { TipoDocumento } from '@prisma/client'
+import { TipoDocumento } from '@/types/prisma-enums'
 import * as XLSX from 'xlsx'
 
 // Funzione per costruire la mappa qualifiche dal database

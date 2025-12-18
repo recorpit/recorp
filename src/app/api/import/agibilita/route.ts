@@ -218,7 +218,7 @@ export async function POST(request: NextRequest) {
             }
           })
           localeId = nuovoLocale.id
-          localiMap.set(agibData.localeNome.toLowerCase(), localeId)
+          localiMap.set((agibData.localeNome || '').toLowerCase(), localeId as string)
           result.localiCreati++
         }
         

@@ -143,7 +143,7 @@ export async function POST(request: NextRequest) {
     const isPIVA = haPartitaIva || tipoContrattoIsPIVA
     
     // Genera codice commercialista SOLO se NON è P.IVA
-    let codiceCommercialista = null
+    let codiceCommercialista: string | null = null
     
     if (!isPIVA) {
       // Se fornito dall'utente, verifica unicità

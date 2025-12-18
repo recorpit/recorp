@@ -46,8 +46,8 @@ export async function GET(
       where: { userId: params.id },
       select: { permessoId: true, concesso: true }
     })
-    const permessiUtenteMap = new Map(
-      permessiUtente.map(p => [p.permessoId, p.concesso])
+    const permessiUtenteMap = new Map<string, boolean>(
+      permessiUtente.map((p: any) => [p.permessoId, p.concesso])
     )
     
     // Costruisci risposta con stato effettivo di ogni permesso
@@ -147,7 +147,7 @@ export async function PUT(
     })
     
     // Aggiungi solo i permessi custom (diversi dal ruolo)
-    const permessiDaCreare = []
+    const permessiDaCreare: any[] = []
     
     for (const { permessoId, concesso } of permessi) {
       const daRuolo = permessiRuoloIds.has(permessoId)

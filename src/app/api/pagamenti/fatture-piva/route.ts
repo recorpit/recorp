@@ -186,7 +186,7 @@ export async function POST(request: NextRequest) {
     
     // Calcola totale
     let totale = 0
-    const agibilitaIncluse = []
+    const agibilitaIncluse: any[] = []
     
     for (const ag of agibilita) {
       const aa = ag.artisti[0]

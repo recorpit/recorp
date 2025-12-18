@@ -5,7 +5,7 @@ import NextAuth from 'next-auth'
 import Credentials from 'next-auth/providers/credentials'
 import bcrypt from 'bcryptjs'
 import { prisma } from '@/lib/db'
-import type { RuoloUtente } from '@prisma/client'
+import type { RuoloUtente } from '@/types/prisma-enums'
 
 // Estendi i tipi di NextAuth
 declare module 'next-auth' {

@@ -97,8 +97,8 @@ async function processZipFile(file: File, emailSettings: any): Promise<ImportRes
     const zipEntries = zip.getEntries()
     
     // Trova file XML risposta e PDF
-    let xmlRispostaEntry = null
-    let pdfEntry = null
+    let xmlRispostaEntry: ReturnType<typeof zip.getEntries>[number] | null = null
+    let pdfEntry: ReturnType<typeof zip.getEntries>[number] | null = null
     
     for (const entry of zipEntries) {
       const entryName = entry.entryName.toLowerCase()

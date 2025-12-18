@@ -26,7 +26,11 @@ export async function POST(request: NextRequest) {
     if (!agibilita) {
       return NextResponse.json({ error: 'Agibilità non trovata' }, { status: 404 })
     }
-    
+
+    if (!agibilita.locale) {
+      return NextResponse.json({ error: 'Agibilità senza locale associato' }, { status: 400 })
+    }
+
     // Per ora restituiamo i dati JSON
     // TODO: Implementare generazione PDF con @react-pdf/renderer
     const pdfData = {

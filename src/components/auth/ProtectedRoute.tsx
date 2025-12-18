@@ -4,7 +4,7 @@
 'use client'
 
 import { useCurrentUser, hasRole } from '@/hooks/useCurrentUser'
-import type { RuoloUtente } from '@prisma/client'
+import type { RuoloUtente } from '@/types/prisma-enums'
 import { AlertTriangle } from 'lucide-react'
 
 interface ProtectedRouteProps {

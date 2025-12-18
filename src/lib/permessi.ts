@@ -2,7 +2,7 @@
 // Utility per gestione permessi
 
 import { prisma } from '@/lib/db'
-import type { RuoloUtente } from '@prisma/client'
+import type { RuoloUtente } from '@/types/prisma-enums'
 
 // Cache permessi (per evitare query ripetute)
 const permessiCache = new Map<string, Set<string>>()

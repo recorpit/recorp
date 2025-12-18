@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { calcolaCompensi, calcolaScadenzaPagamento, generaCodiceAgibilita, round2 } from '@/lib/constants'
-import { StatoAgibilita } from '@prisma/client'
+import { StatoAgibilita } from '@/types/prisma-enums'
 
 // GET - Lista agibilità
 export async function GET(request: NextRequest) {
@@ -131,7 +131,7 @@ export async function POST(request: NextRequest) {
     }
     
     // Verifica locale (solo se non estera)
-    let locale = null
+    let locale: any = null
     if (!isEstera && body.localeId) {
       locale = await prisma.locale.findUnique({ where: { id: body.localeId } })
       if (!locale) {
@@ -140,7 +140,7 @@ export async function POST(request: NextRequest) {
     }
     
     // Verifica committente (opzionale)
-    let committente = null
+    let committente: any = null
     if (body.committenteId) {
       committente = await prisma.committente.findUnique({ where: { id: body.committenteId } })
       if (!committente) {
@@ -169,7 +169,7 @@ export async function POST(request: NextRequest) {
     }
     
     // Mappa artisti per ID
-    const artistiMap = new Map(artisti.map(a => [a.id, a]))
+    const artistiMap = new Map(artisti.map((a: any) => [a.id, a]))
     
     // Gestione codice (prenotato o nuovo)
     let codice = body.codice
@@ -233,7 +233,7 @@ export async function POST(request: NextRequest) {
     console.log(`Artisti dopo dedupe: ${artistiDedupe.length} (erano ${body.artisti.length})`)
     
     const artistiData = artistiDedupe.map((a: any) => {
-      const artista = artistiMap.get(a.artistaId)!
+      const artista: any = artistiMap.get(a.artistaId)!
       const compensi = calcolaCompensi({ netto: parseFloat(a.compensoNetto || '0') }, 0)
       
       totaleNetti += compensi.netto

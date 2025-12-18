@@ -9,7 +9,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const anno = parseInt(searchParams.get('anno') || new Date().getFullYear().toString())
     
-    const mesi = []
+    const mesi: any[] = []
     
     for (let mese = 0; mese < 12; mese++) {
       const dataInizio = new Date(anno, mese, 1)
@@ -63,7 +63,7 @@ export async function GET(request: NextRequest) {
     // Trend settimanale ultimo mese
     const oggi = new Date()
     const inizioMese = new Date(oggi.getFullYear(), oggi.getMonth(), 1)
-    const settimane = []
+    const settimane: any[] = []
     
     let dataCorrente = new Date(inizioMese)
     let settimanaNum = 1

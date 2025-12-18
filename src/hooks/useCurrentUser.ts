@@ -4,7 +4,7 @@
 'use client'
 
 import { useSession } from 'next-auth/react'
-import type { RuoloUtente } from '@prisma/client'
+import type { RuoloUtente } from '@/types/prisma-enums'
 
 interface CurrentUser {
   id: string
